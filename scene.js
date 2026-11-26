@@ -767,6 +767,7 @@ stage.addEventListener('pointermove', e => {
 // ---------------------------------------------------------------- scroll
 let target = 0, P = 0;
 function readScroll() {
+  if (window.LakeDepth) { target = Math.max(0, Math.min(1, window.LakeDepth())); return; }
   const r = section.getBoundingClientRect();
   target = Math.max(0, Math.min(1, -r.top / (section.offsetHeight - innerHeight)));
 }

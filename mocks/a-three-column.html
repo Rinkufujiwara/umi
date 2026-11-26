@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umi モックA 三列</title>
+<style>
+  :root { --ink: #0f2236; --sub: #5a6b7d; --line: rgba(15,34,54,.08); --navy: #002A6B; --must: #c2412d; --self: #2f6f8f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #06202e; color: var(--ink);
+    font-family: "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif; }
+  #dive { position: relative; }
+  #stage { position: sticky; top: 0; height: 100vh; overflow: hidden; background: #9fb7c9; margin-bottom: -100vh; }
+  #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* 一覧は景色の上をふつうにスクロールする */
+  .app { position: relative; z-index: 1; display: grid; grid-template-columns: 220px minmax(0, 620px) 1fr; gap: 20px; padding: 20px; pointer-events: none; }
+  .side, .main { pointer-events: auto; }
+  .side { position: sticky; top: 20px; align-self: start; background: rgba(255,255,255,.82); backdrop-filter: blur(18px);
+    border-radius: 14px; padding: 16px 12px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; padding: 0 6px 14px; letter-spacing: .04em; }
+  .brand i { width: 22px; height: 22px; border-radius: 6px; background: var(--navy); display: inline-block; position: relative; }
+  .brand i::after { content: ""; position: absolute; left: 4px; right: 4px; top: 12px; height: 2px; border-radius: 2px; background: #fff; }
+  .side h4 { font-size: 11px; letter-spacing: .14em; color: var(--sub); margin: 14px 6px 6px; font-weight: 600; }
+  .side a { display: flex; justify-content: space-between; align-items: center; padding: 7px 8px; border-radius: 8px; color: var(--ink);
+    text-decoration: none; font-size: 14px; }
+  .side a.on { background: rgba(0,42,107,.08); font-weight: 600; }
+  .side a span { font-size: 12px; color: var(--sub); }
+  .side .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+
+  .main { padding-bottom: 60vh; }
+  .card { background: rgba(255,255,255,.9); backdrop-filter: blur(18px); border-radius: 16px; padding: 18px 20px; margin-bottom: 16px;
+    box-shadow: 0 10px 40px rgba(0,20,40,.12); }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .head h1 { font-size: 24px; margin: 0; letter-spacing: .02em; }
+  .head .date { color: var(--sub); font-size: 13px; }
+  .add { margin-top: 14px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff; }
+  .add b { color: var(--navy); font-size: 18px; line-height: 1; }
+  .add span { color: #93a1ae; font-size: 14px; }
+  .add kbd { margin-left: auto; font: 11px ui-monospace, Consolas, monospace; color: var(--sub); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; }
+  .tide { margin-top: 14px; }
+  .tide .lab { display: flex; justify-content: space-between; font-size: 12px; color: var(--sub); margin-bottom: 6px; }
+  .tide .bar { height: 8px; border-radius: 99px; background: rgba(15,34,54,.07); overflow: hidden; }
+  .tide .fill { height: 100%; width: 70%; border-radius: 99px; background: linear-gradient(90deg, #2f7fae, var(--navy)); }
+
+  .focus { border-left: 4px solid var(--navy); }
+  .focus .k { font-size: 11px; letter-spacing: .16em; color: var(--navy); font-weight: 700; }
+  .focus h2 { font-size: 20px; margin: 6px 0 4px; }
+  .focus p { margin: 0; color: var(--sub); font-size: 13px; line-height: 1.7; }
+
+  .sec { display: flex; align-items: baseline; gap: 10px; margin: 4px 2px 8px; }
+  .sec h3 { margin: 0; font-size: 15px; }
+  .sec .depth { font-size: 11px; letter-spacing: .16em; color: var(--sub); }
+  .sec .n { margin-left: auto; font-size: 12px; color: var(--sub); }
+  .row { display: grid; grid-template-columns: 22px 1fr auto; gap: 12px; align-items: start; padding: 11px 2px; border-top: 1px solid var(--line); }
+  .row:first-of-type { border-top: 0; }
+  .ck { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #9aa9b6; margin-top: 2px; }
+  .t { font-size: 15px; line-height: 1.5; }
+  .m { font-size: 12px; color: var(--sub); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 99px; white-space: nowrap; height: fit-content; margin-top: 2px; }
+  .tag.must { color: var(--must); background: rgba(194,65,45,.09); }
+  .tag.self { color: var(--self); background: rgba(47,111,143,.1); }
+  .late { color: var(--must); font-weight: 600; }
+  .done .t { color: #8e9aa6; }
+  .done .ck { background: #c9d2da; border-color: #c9d2da; }
+  .day { font-size: 12px; color: var(--sub); margin: 12px 2px 2px; }
+  .bed { background: rgba(255,255,255,.78); }
+
+  .env { position: fixed; right: 20px; top: 20px; font-size: 12px; color: var(--ink); background: rgba(255,255,255,.82);
+    backdrop-filter: blur(10px); padding: 7px 12px; border-radius: 999px; z-index: 5; }
+  .depthbar { position: fixed; right: 28px; top: 30vh; bottom: 30vh; width: 2px; background: rgba(255,255,255,.35); z-index: 5; }
+  .depthbar i { position: absolute; left: -4px; width: 10px; height: 10px; border-radius: 50%; background: #fff; transform: translateY(-50%); top: 0; }
+  .depthbar span { position: absolute; right: 14px; transform: translateY(-50%); color: #fff; font-size: 11px; white-space: nowrap;
+    text-shadow: 0 1px 6px rgba(0,20,40,.6); letter-spacing: .08em; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/",
+  "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.39.6/build/index.js"
+} }
+</script>
+</head>
+<body>
+<section id="dive">
+  <div id="stage"><canvas id="scene" aria-hidden="true"></canvas></div>
+
+  <div class="app">
+    <nav class="side">
+      <div class="brand"><i></i>Umi</div>
+      <a class="on" href="#">すべての海域 <span>18</span></a>
+      <h4>海域</h4>
+      <a href="#"><span style="color:var(--ink)"><i class="dot" style="background:#2f6f8f"></i>大学</span><span>6</span></a>
+      <a href="#"><span style="color:var(--ink)"><i class="dot" style="background:#6a5acd"></i>Cypher</span><span>4</span></a>
+      <a href="#"><span style="color:var(--ink)"><i class="dot" style="background:#c0812c"></i>制作</span><span>5</span></a>
+      <a href="#"><span style="color:var(--ink)"><i class="dot" style="background:#3c8d5a"></i>生活</span><span>3</span></a>
+      <a href="#" style="color:var(--sub)">＋ 新しい海域</a>
+      <h4>深さ</h4>
+      <a href="#">水面　今日 <span>5</span></a>
+      <a href="#">浅瀬　今週 <span>6</span></a>
+      <a href="#">深み　いつか <span>7</span></a>
+      <a href="#">湖底　終えたもの <span>42</span></a>
+    </nav>
+
+    <main class="main">
+      <div class="card">
+        <div class="head"><h1>今日</h1><span class="date">11月26日（木）</span></div>
+        <div class="add"><b>＋</b><span>タスクを追加　例：明日15時 統計の課題 #大学</span><kbd>Ctrl K</kbd></div>
+        <div class="tide">
+          <div class="lab"><span>今日の潮位　3時間30分 ／ 5時間</span><span>あと1時間30分</span></div>
+          <div class="bar"><div class="fill"></div></div>
+        </div>
+      </div>
+
+      <div class="card focus">
+        <div class="k">いまの一つ</div>
+        <h2>TIEカードの予約を取る</h2>
+        <p>今日まで・必須・約15分。取り逃すと次の空きは3週間後です。</p>
+      </div>
+
+      <div class="card">
+        <div class="sec"><span class="depth">SURFACE</span><h3>水面　今日</h3><span class="n">5件</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">TIEカードの予約を取る</div><div class="m"><span class="late">今日まで</span><span>15分</span><span>生活</span></div></div><span class="tag must">必須</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">統計学の課題を提出する</div><div class="m"><span>今日 23:59</span><span>1時間</span><span>大学</span></div></div><span class="tag must">必須</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">Cypher 定例の議事録をまとめる</div><div class="m"><span>今日</span><span>30分</span><span>Cypher</span></div></div><span class="tag must">必須</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">Umi のダッシュボードのモックを確認する</div><div class="m"><span>今日</span><span>45分</span><span>制作</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">スペイン語の単語を20個</div><div class="m"><span>毎日</span><span>20分</span><span>大学</span></div></div><span class="tag self">自主</span></div>
+      </div>
+
+      <div class="card">
+        <div class="sec"><span class="depth">SHALLOWS</span><h3>浅瀬　今週</h3><span class="n">6件</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">英語教材 1-05 の台本を書く</div><div class="m"><span>金曜</span><span>2時間</span><span>制作</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">ゼミの発表資料を送る</div><div class="m"><span>土曜</span><span>1時間</span><span>大学</span></div></div><span class="tag must">必須</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">WD 今週のお題を提出する</div><div class="m"><span>日曜</span><span>3時間</span><span>制作</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">家賃を振り込む</div><div class="m"><span>日曜</span><span>10分</span><span>生活</span></div></div><span class="tag must">必須</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">会員アプリの改善案を3つ出す</div><div class="m"><span>今週</span><span>1時間</span><span>Cypher</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">ポートフォリオに Transtudy の動画を入れる</div><div class="m"><span>今週</span><span>1時間</span><span>制作</span></div></div><span class="tag self">自主</span></div>
+      </div>
+
+      <div class="card">
+        <div class="sec"><span class="depth">DEPTHS</span><h3>深み　いつか</h3><span class="n">7件</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">AIで作った人シリーズの題材を10本ためる</div><div class="m"><span>期限なし</span><span>制作</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">留学Q&Aの記事を書く</div><div class="m"><span>期限なし</span><span>生活</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">夏のインターンを調べる</div><div class="m"><span>2月まで</span><span>大学</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">潮見と凪を A2A でつなぐ</div><div class="m"><span>期限なし</span><span>制作</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">運営マニュアルの開発の章を書く</div><div class="m"><span>期限なし</span><span>Cypher</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">アンダルシアの白い村を回る</div><div class="m"><span>春休み</span><span>生活</span></div></div><span class="tag self">自主</span></div>
+        <div class="row"><i class="ck"></i><div><div class="t">統計検定2級の過去問</div><div class="m"><span>期限なし</span><span>大学</span></div></div><span class="tag self">自主</span></div>
+      </div>
+
+      <div class="card bed">
+        <div class="sec"><span class="depth">LAKE BED</span><h3>湖底　終えたもの</h3><span class="n">今週 12件</span></div>
+        <div class="day">今日</div>
+        <div class="row done"><i class="ck"></i><div><div class="t">3Dの湖をコミットする</div><div class="m"><span>制作</span></div></div><span></span></div>
+        <div class="row done"><i class="ck"></i><div><div class="t">洗濯</div><div class="m"><span>生活</span></div></div><span></span></div>
+        <div class="day">昨日</div>
+        <div class="row done"><i class="ck"></i><div><div class="t">DevFest の Devpost を更新する</div><div class="m"><span>制作</span></div></div><span></span></div>
+        <div class="row done"><i class="ck"></i><div><div class="t">経済学の小テスト</div><div class="m"><span>大学</span></div></div><span></span></div>
+        <div class="row done"><i class="ck"></i><div><div class="t">Cypher の会員ダッシュボードの質問に答える</div><div class="m"><span>Cypher</span></div></div><span></span></div>
+        <div class="day">11月23日（月）</div>
+        <div class="row done"><i class="ck"></i><div><div class="t">ハッカソンの振り返りを書く</div><div class="m"><span>制作</span></div></div><span></span></div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<div class="mocklabel" style="position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;font-size:12px;color:#fff;background:rgba(0,20,40,.55);padding:5px 12px;border-radius:99px">モックA：三列（Todoist / Things 風）</div>
+<div class="env" id="envStatus">現在地の天気を調べています…</div>
+<div class="depthbar"><i id="dDot"></i><span id="dTxt">水面</span></div>
+
+<script src="../env.js"></script>
+<script type="module" src="../scene.js"></script>
+<script type="module">
+  const Env = window.LakeEnv;
+  const show = () => { document.getElementById('envStatus').textContent = Env.statusText(); };
+  Env.on(show); show();
+  const qs = new URLSearchParams(location.search);
+  if (Env.KINDS[qs.get('weather')]) Env.setWeatherMode(qs.get('weather'));
+  const wait = setInterval(() => { if (window.LakeScene?.setSeason) { clearInterval(wait); window.LakeScene.setSeason(qs.get('season') || Env.auto.season); } }, 100);
+  const dot = document.getElementById('dDot'), txt = document.getElementById('dTxt');
+  addEventListener('lake:frame', e => {
+    const p = e.detail.P;
+    dot.style.top = txt.style.top = `${p * 100}%`;
+    txt.textContent = p < 0.18 ? '水面' : p < 0.45 ? '浅瀬' : p < 0.75 ? '深み' : '湖底';
+  });
+  // 確認用：?p=0.5 で途中へ
+  const qp = qs.get('p');
+  if (qp !== null) addEventListener('load', () => setTimeout(() => {
+    const s = document.getElementById('dive');
+    scrollTo(0, (s.offsetHeight - innerHeight) * Math.max(0, Math.min(1, +qp)));
+  }, 300));
+</script>
+</body>
+</html>

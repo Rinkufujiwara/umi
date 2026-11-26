@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umi モックB 中央一列</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .col { margin: 0 auto; width: min(640px, calc(100% - 32px)); padding: 56px 0 60vh; }
+  .hello { color: #fff; text-shadow: 0 2px 16px rgba(0,20,40,.45); margin-bottom: 18px; }
+  .hello .d { font-size: 13px; letter-spacing: .14em; opacity: .9; }
+  .hello h1 { margin: 6px 0 0; font-size: 34px; letter-spacing: .03em; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0 0; }
+  .chips span { font-size: 12px; padding: 5px 11px; border-radius: 99px; background: rgba(255,255,255,.75); backdrop-filter: blur(8px); color: var(--ink); }
+  .chips span.on { background: var(--ink); color: #fff; }
+  .panel { padding: 18px 22px; margin-bottom: 14px; }
+  .tide { margin-top: 12px; font-size: 12px; color: var(--sub); }
+  .tide .bar { margin-top: 6px; }
+  .focus { display: flex; gap: 14px; align-items: center; }
+  .focus .big { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--navy); flex: none; }
+  .focus .k { font-size: 11px; letter-spacing: .16em; color: var(--navy); font-weight: 700; }
+  .focus h2 { margin: 3px 0 2px; font-size: 19px; }
+  .focus p { margin: 0; font-size: 13px; color: var(--sub); }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/", "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.39.6/build/index.js" } }</script>
+</head><body>
+<section id="dive">
+  <div id="stage"><canvas id="scene"></canvas></div>
+  <div class="col">
+    <div class="hello">
+      <div class="d">11月26日（木）・コルドバ 晴れ 14℃</div>
+      <h1>今日の水面</h1>
+      <div class="chips"><span class="on">すべて</span><span>大学</span><span>Cypher</span><span>制作</span><span>生活</span><span>＋</span></div>
+    </div>
+    <div class="glass panel">
+      <div class="add"><b>＋</b><span>タスクを追加　例：明日15時 統計の課題 #大学</span><kbd>Ctrl K</kbd></div>
+      <div class="tide">今日の潮位　3時間30分 ／ 5時間<div class="bar"><div></div></div></div>
+    </div>
+    <div class="glass panel focus"><i class="big"></i><div><div class="k">いまの一つ</div><h2 id="fT"></h2><p id="fN"></p></div></div>
+    <div class="glass panel"><div class="sec"><span class="depth">SURFACE</span><h3>水面　今日</h3><span class="n">5件</span></div><div id="s1"></div></div>
+    <div class="glass panel"><div class="sec"><span class="depth">SHALLOWS</span><h3>浅瀬　今週</h3><span class="n">6件</span></div><div id="s2"></div></div>
+    <div class="glass panel"><div class="sec"><span class="depth">DEPTHS</span><h3>深み　いつか</h3><span class="n">5件</span></div><div id="s3"></div></div>
+    <div class="glass panel" style="background:rgba(255,255,255,.78)"><div class="sec"><span class="depth">LAKE BED</span><h3>湖底　終えたもの</h3></div><div id="s4"></div></div>
+  </div>
+</section>
+<div class="mocklabel">モックB：中央一列（Things 3 風）</div>
+<script src="sample.js"></script>
+<script>
+  fT.textContent = SAMPLE.focus.title; fN.textContent = SAMPLE.focus.note;
+  renderRows(s1, 'surface'); renderRows(s2, 'shallows'); renderRows(s3, 'depths'); renderRows(s4, 'bed');
+</script>
+<script src="../env.js"></script>
+<script type="module" src="../scene.js"></script>
+<script src="mockjump.js"></script>
+</body></html>

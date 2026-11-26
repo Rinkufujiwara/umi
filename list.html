@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umi 一覧</title>
+<link rel="stylesheet" href="app.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/",
+  "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.39.6/build/index.js"
+} }
+</script>
+</head>
+<body>
+<section id="dive">
+  <div id="stage" aria-hidden="true"><canvas id="scene"></canvas><div class="loading"></div></div>
+
+  <div class="app">
+    <nav class="side glass" aria-label="海域と深さ">
+      <div class="brand"><i></i>Umi</div>
+      <button class="nav on" data-area="">すべての海域 <span class="c" id="cAll"></span></button>
+      <h4>海域</h4>
+      <div id="areaList"></div>
+      <form class="areaAdd" id="areaAdd"><input id="areaName" placeholder="＋ 新しい海域" aria-label="新しい海域の名前"></form>
+      <h4>深さ</h4>
+      <button class="nav" data-jump="surface">水面　今日 <span class="c" id="cSurface"></span></button>
+      <button class="nav" data-jump="shallows">浅瀬　今週 <span class="c" id="cShallows"></span></button>
+      <button class="nav" data-jump="depths">深み　いつか <span class="c" id="cDepths"></span></button>
+      <button class="nav" data-jump="bed">湖底　終えたもの <span class="c" id="cBed"></span></button>
+      <div class="tools">
+        <button id="clearSample" hidden>見本のタスクを消す</button>
+        <button id="exportBtn">データを書き出す</button>
+        <label>データを読み込む<input type="file" id="importFile" accept="application/json" hidden></label>
+      </div>
+    </nav>
+
+    <main class="main">
+      <div class="chips" id="chips"></div>
+      <div class="card glass">
+        <div class="head"><h1>今日</h1><span class="date" id="today"></span></div>
+        <form class="addf" id="addForm">
+          <b aria-hidden="true">＋</b>
+          <input id="addInput" autocomplete="off" placeholder="タスクを追加　例：明日15時 統計の課題 #大学 1時間" aria-label="タスクを追加">
+          <kbd>Ctrl K</kbd>
+        </form>
+        <div class="preview" id="preview"></div>
+        <div class="tide" id="tide">
+          <div class="lab"><span id="tideText"></span><span class="rest" id="tideRest"></span></div>
+          <div class="bar"><div class="fill" id="tideFill"></div></div>
+        </div>
+      </div>
+
+      <div class="card glass focus" id="focus"></div>
+
+      <section class="card glass" id="sec-surface"><div class="sec"><span class="depth">SURFACE</span><h3>水面　今日</h3><span class="n" id="nSurface"></span></div><div class="list" id="L-surface" data-sec="surface"></div></section>
+      <section class="card glass" id="sec-shallows"><div class="sec"><span class="depth">SHALLOWS</span><h3>浅瀬　今週</h3><span class="n" id="nShallows"></span></div><div class="list" id="L-shallows" data-sec="shallows"></div></section>
+      <section class="card glass" id="sec-depths"><div class="sec"><span class="depth">DEPTHS</span><h3>深み　いつか</h3><span class="n" id="nDepths"></span></div><div class="list" id="L-depths" data-sec="depths"></div></section>
+      <section class="card glass bed" id="sec-bed"><div class="sec"><span class="depth">LAKE BED</span><h3>湖底　終えたもの</h3><span class="n" id="nBed"></span></div><div class="list" id="L-bed"></div></section>
+    </main>
+  </div>
+</section>
+
+<div class="env">
+  <button id="envBtn" aria-expanded="false">現在地の天気を調べています…</button>
+  <div class="envMenu glass" id="envMenu">
+    <p class="lbl">季節</p>
+    <div class="row2" id="seasonBtns"></div>
+    <p class="lbl">天気</p>
+    <div class="row2" id="weatherBtns"></div>
+  </div>
+</div>
+<div class="depthbar" aria-hidden="true"><i id="dDot"></i><span id="dTxt">水面</span></div>
+<div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastUndo">元に戻す</button></div>
+
+<script src="env.js"></script>
+<script type="module" src="scene.js"></script>
+<script type="module" src="app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.4/dist/lenis.min.js"></script>
+<script>
+  if (window.Lenis && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.__lenis = new Lenis({ lerp: 0.09, wheelMultiplier: 0.9 });
+    (function raf(t) { window.__lenis.raf(t); requestAnimationFrame(raf); })(performance.now());
+  }
+</script>
+</body>
+</html>

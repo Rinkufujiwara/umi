@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umi モックD 深さボード</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .wrap { padding: 22px clamp(14px, 3vw, 36px) 40vh; }
+  .bar1 { display: flex; align-items: center; gap: 14px; color: #fff; text-shadow: 0 2px 12px rgba(0,20,40,.45); margin-bottom: 16px; }
+  .bar1 h1 { margin: 0; font-size: 24px; }
+  .bar1 .add { flex: 1; max-width: 520px; margin-left: auto; text-shadow: none; }
+  .board { display: grid; grid-template-columns: repeat(4, minmax(240px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; }
+  .colm { padding: 14px 14px 6px; }
+  .colm .sec { margin-bottom: 10px; }
+  .card { background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(0,20,40,.04); }
+  .card .t { font-size: 14px; }
+  .card .m { margin-top: 6px; }
+  .colm.s1 { background: rgba(255,255,255,.92); }
+  .colm.s2 { background: rgba(240,247,251,.88); }
+  .colm.s3 { background: rgba(225,236,243,.84); }
+  .colm.s4 { background: rgba(210,222,231,.8); }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/", "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.39.6/build/index.js" } }</script>
+</head><body>
+<section id="dive">
+  <div id="stage"><canvas id="scene"></canvas></div>
+  <div class="wrap">
+    <div class="bar1"><h1>Umi</h1><span style="font-size:13px">11月26日（木）</span>
+      <div class="add"><b>＋</b><span>タスクを追加　例：明日15時 統計の課題 #大学</span><kbd>Ctrl K</kbd></div></div>
+    <div class="board">
+      <div class="glass colm s1"><div class="sec"><span class="depth">SURFACE</span><h3>水面　今日</h3><span class="n">5</span></div><div id="c1"></div></div>
+      <div class="glass colm s2"><div class="sec"><span class="depth">SHALLOWS</span><h3>浅瀬　今週</h3><span class="n">6</span></div><div id="c2"></div></div>
+      <div class="glass colm s3"><div class="sec"><span class="depth">DEPTHS</span><h3>深み　いつか</h3><span class="n">5</span></div><div id="c3"></div></div>
+      <div class="glass colm s4"><div class="sec"><span class="depth">LAKE BED</span><h3>湖底</h3></div><div id="c4"></div></div>
+    </div>
+  </div>
+</section>
+<div class="mocklabel">モックD：深さボード（Trello / Linear のボード風）。列のあいだをドラッグ＝深さを変える</div>
+<script src="sample.js"></script>
+<script>
+  const cards = (el, key) => { renderRows(el, key); el.querySelectorAll('.row').forEach(r => { r.className = 'card ' + (r.classList.contains('done') ? 'done' : ''); r.querySelector('.ck')?.remove(); }); };
+  cards(c1, 'surface'); cards(c2, 'shallows'); cards(c3, 'depths'); cards(c4, 'bed');
+</script>
+<script src="../env.js"></script>
+<script type="module" src="../scene.js"></script>
+<script src="mockjump.js"></script>
+</body></html>

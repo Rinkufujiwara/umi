@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umi モック5案と評価</title>
+<style>
+  :root { --ink: #0f2236; --sub: #5a6b7d; --line: #e3e8ed; --navy: #002A6B; }
+  body { margin: 0; background: #f4f6f8; color: var(--ink); font-family: "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif; line-height: 1.75; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 40px 20px 80px; }
+  h1 { font-size: 28px; margin: 0 0 6px; }
+  .lead { color: var(--sub); margin: 0 0 28px; }
+  h2 { font-size: 20px; margin: 44px 0 12px; }
+  .pick { background: #fff; border-left: 4px solid var(--navy); border-radius: 12px; padding: 18px 22px; }
+  .pick b { color: var(--navy); }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; font-size: 14px; }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { background: #eef2f5; font-size: 12px; color: var(--sub); font-weight: 600; }
+  td.n { text-align: center; white-space: nowrap; }
+  tr.win td { background: #f1f5fb; font-weight: 600; }
+  .mock { background: #fff; border-radius: 14px; overflow: hidden; margin: 18px 0; border: 1px solid var(--line); }
+  .mock img { width: 100%; display: block; }
+  .mock .txt { padding: 14px 18px 16px; }
+  .mock h3 { margin: 0 0 4px; font-size: 17px; }
+  .mock p { margin: 4px 0; font-size: 14px; color: #33475b; }
+  .mock .ok { color: #2f6f4f; } .mock .ng { color: #a3402e; }
+  a.open { display: inline-block; margin-top: 6px; font-size: 13px; color: var(--navy); }
+  ul { padding-left: 20px; } li { margin: 4px 0; }
+  .note { font-size: 13px; color: var(--sub); }
+</style></head><body><div class="wrap">
+  <h1>Umi ダッシュボード：モック5案と評価</h1>
+  <p class="lead">2026年11月26日、あなたが寝ている間に作りました。どの案も、背景は前回作った3Dの湖そのものです。各案の「動くモックを開く」から、スクロールして潜る様子も見られます（見本のデータで、ボタンは動きません）。</p>
+
+  <div class="pick">
+    <b>採用：A（三列）を土台に、狭い画面ではB（中央一列）の形に切り替え。</b><br>
+    ほかの案から借りたもの：D の「深さのあいだをドラッグして移す」、E のキーボード操作、C の「あとで（浅瀬へ）」ボタン。<br>
+    <a class="open" href="../index.html">→ 実装したダッシュボードを開く</a>
+  </div>
+
+  <h2>評価（自分で採点、各10点）</h2>
+  <table>
+    <tr><th>案</th><th>読みやすさ ×3</th><th>コンセプトに合うか ×2.5</th><th>静けさ ×1.5</th><th>使い慣れた操作 ×2</th><th>スマホ ×1</th><th>合計（100点）</th></tr>
+    <tr class="win"><td>A 三列</td><td class="n">9</td><td class="n">8</td><td class="n">9</td><td class="n">9</td><td class="n">4</td><td class="n">82.5</td></tr>
+    <tr><td>B 中央一列</td><td class="n">8</td><td class="n">9</td><td class="n">9</td><td class="n">7</td><td class="n">8</td><td class="n">82.0</td></tr>
+    <tr><td>C 水面＋シート</td><td class="n">9</td><td class="n">5</td><td class="n">8</td><td class="n">8</td><td class="n">7</td><td class="n">74.5</td></tr>
+    <tr><td>D 深さボード</td><td class="n">8</td><td class="n">6</td><td class="n">6</td><td class="n">7</td><td class="n">3</td><td class="n">65.0</td></tr>
+    <tr><td>E 水中ダーク</td><td class="n">6</td><td class="n">5</td><td class="n">7</td><td class="n">8</td><td class="n">5</td><td class="n">62.0</td></tr>
+  </table>
+  <p class="note">重みの理由：以前の Umi は「見づらい」で3回作り直したので、読みやすさを一番重くしました。次が「スクロール＝潜る」「終えたら沈む」というコンセプト、その次が Todoist や Things に慣れた人が迷わないかです。A と B は僅差なので、PC では A、スマホでは B の形にして両方の良いところを取りました。</p>
+
+  <h2>5つの案</h2>
+  <div class="mock"><img src="shots/a.png" alt="モックA 三列"><div class="txt">
+    <h3>A：三列（Todoist / Things 風）</h3>
+    <p>左に海域と深さの一覧、まんなかにタスク、右に湖が見える。</p>
+    <p class="ok">○ 文字は白い面の上だけ。海域が増えても左の列に収まる。見慣れた形で迷わない。</p>
+    <p class="ng">× そのままだとスマホで左の列が場所を取る → スマホではBの形に切り替えて解決。</p>
+    <a class="open" href="a-three-column.html">動くモックを開く</a></div></div>
+  <div class="mock"><img src="shots/b.png" alt="モックB 中央一列"><div class="txt">
+    <h3>B：中央一列（Things 3 風）</h3>
+    <p>まんなかに一列だけ。両側に湖が広く見える。海域は上のチップで切り替え。</p>
+    <p class="ok">○ 「下へスクロール＝潜る」が一番自然に感じられる。スマホにそのまま合う。</p>
+    <p class="ng">× 海域が10個を超えるとチップが並びきらない。見出しの白い文字は景色の明るさに左右される。</p>
+    <a class="open" href="b-center-column.html">動くモックを開く</a></div></div>
+  <div class="mock"><img src="shots/c.png" alt="モックC 水面とシート"><div class="txt">
+    <h3>C：水面の上に「いまの一つ」＋下から引き上げるシート（Sunsama 風）</h3>
+    <p>上は湖と今やる1件だけ。下のシートに時間割と一覧。</p>
+    <p class="ok">○ 開いた瞬間が一番きれいで、今やることが1つに絞られる。時間割が分かりやすい。</p>
+    <p class="ng">× シートが湖を隠すので、潜る演出がほぼ見えない。時間割は予定を入れる手間が増える。</p>
+    <a class="open" href="c-hero-sheet.html">動くモックを開く</a></div></div>
+  <div class="mock"><img src="shots/d.png" alt="モックD 深さボード"><div class="txt">
+    <h3>D：深さボード（Trello / Linear のボード風）</h3>
+    <p>水面・浅瀬・深み・湖底を横に4列。カードを列のあいだで動かす。</p>
+    <p class="ok">○ 全体を一目で見渡せる。ドラッグで深さを変えるのが直感的（→ 採用案に取り入れた）。</p>
+    <p class="ng">× 深さが横に並ぶので「潜る」感じがしない。カードが多くて静けさに欠ける。スマホで横スクロールになる。</p>
+    <a class="open" href="d-depth-board.html">動くモックを開く</a></div></div>
+  <div class="mock"><img src="shots/e.png" alt="モックE 水中ダーク"><div class="txt">
+    <h3>E：水中ダーク・高密度（Linear 風）</h3>
+    <p>暗い半透明の面に、1行ずつ詰めた一覧。キーボードで全部できる。</p>
+    <p class="ok">○ たくさんのタスクを一度に見られる。キーボード操作が速い（→ 採用案に取り入れた）。</p>
+    <p class="ng">× 最初から暗く、水面から潜る流れがない。文字が小さく、長く見ると疲れる。</p>
+    <a class="open" href="e-dark-dense.html">動くモックを開く</a></div></div>
+
+  <h2>実装したダッシュボード</h2>
+  <div class="mock"><img src="shots/final.png" alt="実装したダッシュボード"><div class="txt">
+    <h3>Umi（実装版）</h3>
+    <ul>
+      <li><b>すばやい入力</b>：「明日15時 統計の課題 #大学 1時間 必須 毎週」のように打つと、期限・時刻・見積もり・海域・必須／自主・くり返しを読み取り、入力中に下に表示します（日付の読み取りは chrono。苦手な「来週月曜」「3日後」は自前で補っています）。</li>
+      <li><b>深さ</b>：期限で自動的に 水面（今日まで）／浅瀬（7日以内）／深み（それより先・期限なし）に並びます。ドラッグや編集画面、キーボードの 1・2・3 で動かせます。</li>
+      <li><b>いまの一つ</b>：遅れ・必須・今日まで・時刻が近いものを優先して1件選びます。「あとで（浅瀬へ）」で後回しにできます。</li>
+      <li><b>潮位</b>：今日の見積もりの合計と、1日に使える時間（初期は5時間、押すと変更）。超えると「満ち潮」と出ます。</li>
+      <li><b>沈める</b>：丸を押すと、ゆっくり沈んで湖底（終えたもの）に積もります。元に戻すこともできます。くり返しのタスクは次の回が自動で浮かびます。</li>
+      <li><b>スクロール＝潜る</b>：一覧を下へ読み進めると、背景のカメラが水面→浅瀬→深み→湖底へ潜ります。</li>
+      <li><b>キーボード</b>：Ctrl+K・C・／ で入力、J・K で選ぶ、X で沈める、E で編集、Esc で閉じる。</li>
+      <li><b>保存</b>：このブラウザの中だけ（localStorage）。左下から書き出し・読み込みができます。見本のタスクは「見本のタスクを消す」で一括で消せます。</li>
+    </ul>
+    <p class="note">確かめたこと：入力の読み取り5例、沈める・元に戻す・くり返しの次の回、再読み込み後の保存、編集、キーボード、ドラッグで浅瀬へ移す、スマホ幅（横にはみ出さないこと）。<br>
+    まだのこと：Firestore への保存（つなぐか聞く前に寝たので、ブラウザ保存にしました）、潮見（重み付けのエージェント）との連携、実機のスマホでの確認、内蔵ブラウザ以外での滑らかさの確認。</p>
+    <a class="open" href="../index.html">→ ダッシュボードを開く</a>　<a class="open" href="../scene.html">→ 湖だけの演出を開く</a></div></div>
+</div></body></html>

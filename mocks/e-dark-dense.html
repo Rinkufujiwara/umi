@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umi モックE 水中ダーク</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  :root { --ink: #e7f0f6; --sub: #8fa6b8; --line: rgba(255,255,255,.07); }
+  .shell { display: grid; grid-template-columns: 200px minmax(0, 720px); gap: 16px; padding: 18px; padding-bottom: 60vh; }
+  .dk { background: rgba(6,24,38,.78); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; color: var(--ink); }
+  .nav { padding: 12px; position: sticky; top: 18px; align-self: start; font-size: 13px; }
+  .nav div { padding: 6px 8px; border-radius: 6px; display: flex; justify-content: space-between; color: var(--sub); }
+  .nav div.on { background: rgba(255,255,255,.07); color: var(--ink); }
+  .nav h4 { font-size: 10px; letter-spacing: .16em; color: var(--sub); margin: 12px 8px 4px; font-weight: 600; }
+  .list { padding: 6px 16px 10px; }
+  .list .add { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.08); margin: 10px 0 6px; }
+  .list .add span { color: #6f879a; }
+  .grp { font-size: 11px; letter-spacing: .14em; color: var(--sub); margin: 18px 0 2px; display: flex; gap: 8px; }
+  .row { padding: 7px 2px; grid-template-columns: 18px 1fr auto auto; }
+  .ck { width: 14px; height: 14px; border-color: #56708a; }
+  .t { font-size: 14px; }
+  .m { margin: 0; }
+  .row .m { justify-content: flex-end; }
+  .tag.must { color: #ff9b85; background: rgba(255,120,90,.1); }
+  .tag.self { color: #8fd0ea; background: rgba(120,200,240,.1); }
+  .done .ck { background: #3b5568; border-color: #3b5568; }
+  .done .t { color: #5f7486; }
+  .day { color: var(--sub); }
+  .keys { margin-top: 14px; font-size: 11px; color: var(--sub); display: flex; gap: 14px; flex-wrap: wrap; }
+  .keys kbd { font: 10px ui-monospace, Consolas, monospace; border: 1px solid rgba(255,255,255,.15); border-radius: 4px; padding: 1px 5px; margin-right: 4px; color: var(--ink); }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/", "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.39.6/build/index.js" } }</script>
+</head><body>
+<section id="dive">
+  <div id="stage"><canvas id="scene"></canvas></div>
+  <div class="shell">
+    <div class="dk nav">
+      <div class="on">受信箱 <span>3</span></div><div>水面 <span>5</span></div><div>浅瀬 <span>6</span></div><div>深み <span>5</span></div><div>湖底 <span>42</span></div>
+      <h4>海域</h4><div>大学 <span>6</span></div><div>Cypher <span>4</span></div><div>制作 <span>5</span></div><div>生活 <span>3</span></div>
+    </div>
+    <div class="dk list">
+      <div class="add"><b style="color:#8fd0ea">＋</b><span>タスクを追加　例：明日15時 統計の課題 #大学</span><kbd style="color:#8fa6b8;border-color:rgba(255,255,255,.15)">C</kbd></div>
+      <div class="grp">SURFACE　水面・今日</div><div id="l1"></div>
+      <div class="grp">SHALLOWS　浅瀬・今週</div><div id="l2"></div>
+      <div class="grp">DEPTHS　深み・いつか</div><div id="l3"></div>
+      <div class="grp">LAKE BED　湖底</div><div id="l4"></div>
+      <div class="keys"><span><kbd>C</kbd>追加</span><span><kbd>X</kbd>完了</span><span><kbd>J</kbd><kbd>K</kbd>移動</span><span><kbd>1</kbd>〜<kbd>3</kbd>深さを変える</span><span><kbd>Ctrl K</kbd>コマンド</span></div>
+    </div>
+  </div>
+</section>
+<div class="mocklabel">モックE：水中ダーク・高密度（Linear 風、キーボード中心）</div>
+<script src="sample.js"></script>
+<script>
+  const dense = (el, key) => { renderRows(el, key); el.querySelectorAll('.row').forEach(r => { const m = r.querySelector('.m'); if (m) { r.appendChild(m); } }); };
+  dense(l1, 'surface'); dense(l2, 'shallows'); dense(l3, 'depths'); renderRows(l4, 'bed');
+</script>
+<script src="../env.js"></script>
+<script type="module" src="../scene.js"></script>
+<script src="mockjump.js"></script>
+</body></html>
