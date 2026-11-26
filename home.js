@@ -1,10 +1,10 @@
 // Umi ホーム：湖に浮かぶブイ＝タスク。終えたら沈める。ホイールはページではなくカメラを動かす
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=11';
-import { parseQuick } from './parse.js?v=11';
-import * as St from './store.js?v=11';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=11';
+import { createHome } from './home-scene.js?v=14';
+import { parseQuick } from './parse.js?v=14';
+import * as St from './store.js?v=14';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=14';
 gsap.registerPlugin(Observer);
 
 const $ = id => document.getElementById(id);
@@ -116,14 +116,17 @@ function renderBed() {
 
 // ---------------------------------------------------------------- 名札（ブイの上の文字）
 const tagEls = new Map();
-let focusId = null;
+let focusId = null, freshId = null, freshUntil = 0;
 let hlId = null;
 home.onFrame((pts, { inside }) => {
   const seen = new Set();
   // 名札：手前を最優先、次に右。常に出すのは上位3つ。ほかはカーソルを合わせたときだけ
   const SHOW = station === 'map' ? 999 : 0;
   const order = pts.slice().sort((a, b) => (Math.round(a.dist / 22) - Math.round(b.dist / 22)) || (b.x - a.x));
+  const fresh = Date.now() < freshUntil ? freshId : null;
+  if (fresh) order.sort((a, b) => (b.id === fresh) - (a.id === fresh)); // 追加したばかりのものは、いちばん先に場所をとる
   const always = new Set(order.slice(0, SHOW).map(p => p.id));
+  if (fresh) always.add(fresh);
   if (station !== 'map' && focusId) always.add(focusId);
   // ぶつかってはいけない場所：ほかのブイ、上のパネル、左の列
   const blocks = [];
@@ -139,7 +142,7 @@ home.onFrame((pts, { inside }) => {
     if (!el) { el = document.createElement('div'); el.className = 'tag'; el.dataset.open = p.id; $('tags').appendChild(el); tagEls.set(p.id, el); }
     const html = `<i style="background:${KIND_COLOR[t.kind || 'none']}"></i>${esc(t.title)}`;
     if (el._h !== html) { el.innerHTML = html; el._h = html; el._w = 0; }
-    el.className = 'tag' + (hlId === p.id ? ' hl' : '') + (sharkSet.has(t.id) ? ' urgent' : '') + (show ? '' : ' off');
+    el.className = 'tag' + (hlId === p.id ? ' hl' : '') + (sharkSet.has(t.id) ? ' urgent' : '') + (p.id === fresh ? ' fresh' : '') + (show ? '' : ' off');
     if (!show) continue;
     if (!el._w) { el._w = el.offsetWidth || 160; el._hh = el.offsetHeight || 24; }
     const w = el._w, h = el._hh, gap = 10;
@@ -271,6 +274,30 @@ document.addEventListener('click', e => {
   }
 });
 // 3Dのブイを直接押す・指す
+// 長押し（0.7秒）で沈める。押している間は円が満ちていく。指を離す・動かすと取り消し
+const HOLD_MS = 700;
+let hold = null, swallowClick = false;
+function startHold(id, x, y) {
+  cancelHold();
+  const ring = $('hold'); ring.style.left = `${x}px`; ring.style.top = `${y}px`;
+  ring.classList.remove('on'); void ring.offsetWidth; ring.classList.add('on');
+  hold = { id, x, y, timer: setTimeout(() => { swallowClick = true; cancelHold(); if (navigator.vibrate) navigator.vibrate(12); complete(id); }, HOLD_MS) };
+}
+function cancelHold() { if (hold) { clearTimeout(hold.timer); hold = null; } $('hold').classList.remove('on'); }
+function holdTarget(e) {
+  const tag = e.target.closest?.('.tag[data-open]');
+  if (tag) return tag.dataset.open;
+  return e.target === $('scene') ? home.pick(e.clientX, e.clientY) : null;
+}
+addEventListener('pointerdown', e => {
+  if (e.button !== 0 || overlayOpen()) return;
+  const id = holdTarget(e); if (id && station !== 'bed') startHold(id, e.clientX, e.clientY);
+});
+addEventListener('pointermove', e => { if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 10) cancelHold(); });
+addEventListener('pointerup', cancelHold); addEventListener('pointercancel', cancelHold);
+addEventListener('contextmenu', e => { if (e.target === $('scene') || e.target.closest?.('.tag')) e.preventDefault(); });
+// 長押しで沈めた直後の「クリック」は、カードを開かない
+addEventListener('click', e => { if (swallowClick) { swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
 $('scene').addEventListener('click', e => { const id = home.pick(e.clientX, e.clientY); if (id) openPop(id, e.clientX, e.clientY); else closePop(); });
 $('scene').addEventListener('pointermove', e => { if (popId) return; const id = home.pick(e.clientX, e.clientY); home.setHover(id); hlId = id; $('scene').style.cursor = id ? 'pointer' : ''; });
 
@@ -278,19 +305,32 @@ $('scene').addEventListener('pointermove', e => { if (popId) return; const id = 
 $('calmBtn').onclick = () => { S.settings.calm = !S.settings.calm; save(); render(); };
 
 // 追加
-function openAdd() { $('addbox').classList.add('open'); $('scrim').classList.add('open'); $('addInput').value = ''; showPv(); setTimeout(() => $('addInput').focus(), 30); }
+// よく使う言葉：押すと入力欄に足す
+const QUICK = ['今日', '明日', '来週月曜', '30分', '1時間', '必須', '重い', '軽い', '毎日', 'いつか'];
+function openAdd() {
+  const r = $('addBtn').getBoundingClientRect(), box = $('addbox');
+  box.style.top = `${r.bottom + 10}px`; box.style.right = `${Math.max(12, innerWidth - r.right)}px`;
+  $('quick').innerHTML = QUICK.map(w => `<button type="button" data-q="${w}">${w}</button>`).join('') +
+    S.areas.slice(0, 4).map(a => `<button type="button" data-q="#${esc(a.name)}">#${esc(a.name)}</button>`).join('');
+  box.classList.add('open'); $('scrim').classList.add('open'); $('addInput').value = ''; showPv();
+  setTimeout(() => $('addInput').focus(), 60);
+}
+$('quick').addEventListener('click', e => {
+  const b = e.target.closest('[data-q]'); if (!b) return;
+  const inp = $('addInput'); inp.value = (inp.value.trim() + ' ' + b.dataset.q).trim() + ' '; inp.focus(); showPv();
+});
 function closeAdd() { $('addbox').classList.remove('open'); if (!popId) $('scrim').classList.remove('open'); }
 $('addBtn').onclick = openAdd;
 function showPv() {
   const v = $('addInput').value.trim(); if (!v) { $('pv').innerHTML = ''; return; }
   const p = parseQuick(v), bits = [];
-  if (p.due) bits.push(dueLabel({ due: p.due, time: p.time }).text); else if (p.someday) bits.push('深み（いつか）');
-  if (p.est) bits.push(`約${estLabel(p.est)}`);
-  if (p.area) bits.push(`#${p.area}`);
-  if (p.kind) bits.push(p.kind === 'must' ? '必須' : '自主');
-  if (p.weight) bits.push(`重さ：${St.WEIGHT[p.weight]}`);
-  if (p.repeat) bits.push(`↻ ${St.REPEAT[p.repeat]}`);
-  $('pv').innerHTML = bits.map(b => `<span>${esc(b)}</span>`).join('');
+  if (p.due) bits.push(['due', dueLabel({ due: p.due, time: p.time }).text]); else if (p.someday) bits.push(['due', 'いつか']);
+  if (p.est) bits.push(['est', `約${estLabel(p.est)}`]);
+  if (p.area) bits.push(['area', `#${p.area}`]);
+  if (p.kind) bits.push([p.kind, p.kind === 'must' ? '必須' : '自主']);
+  if (p.weight) bits.push(['w', `重さ：${St.WEIGHT[p.weight]}`]);
+  if (p.repeat) bits.push(['rep', `↻ ${St.REPEAT[p.repeat]}`]);
+  $('pv').innerHTML = bits.map(b => `<span class="c-${b[0]}">${esc(b[1])}</span>`).join('');
 }
 $('addInput').addEventListener('input', showPv);
 $('addForm').addEventListener('submit', e => {
@@ -299,7 +339,7 @@ $('addForm').addEventListener('submit', e => {
   const t = { id: St.uid(), title: p.title, area: p.area ? St.areaByName(S, p.area) : null, due: p.due, time: p.time, est: p.est,
     kind: p.kind, repeat: p.repeat, pin: p.someday ? 'depths' : (p.due ? null : 'surface'), notes: '', done: false, doneAt: null,
     w: p.weight ? { ...St.WEIGHT_IP[p.weight] } : undefined, ord: Math.max(0, ...S.tasks.map(x => x.ord)) + 1, createdAt: Date.now() };
-  S.tasks.push(t); save(); render(); closeAdd();
+  S.tasks.push(t); freshId = t.id; freshUntil = Date.now() + 5000; save(); render(); closeAdd();
   toast(`${SEC_NAME[secOf(t)]}に浮かべました：${t.title}`, () => { S.tasks = S.tasks.filter(x => x !== t); });
 });
 
@@ -379,7 +419,7 @@ function goTo(name) {
   document.body.classList.toggle('map', up);
   $('mapview').classList.toggle('on', up);
   moveInd();
-  if (!down && !wasHome) setTimeout(wetPanels, 650);
+  if (name === 'home' && from === 'bed') setTimeout(wetPanels, 650); // 水滴は湖底から上がってきたときだけ
   renderBed();
   [$('top'), $('bedhint'), $('ticks'), $('axis')].forEach(el => el.classList.toggle('away', down || up));
   $('tags').style.opacity = down ? '0' : '1';

@@ -166,13 +166,15 @@ export function createHome(canvas) {
   // ---------------------------------------------------------------- water surface
   const normals = new THREE.TextureLoader().load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/waternormals.jpg',
     t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; });
-  const waterDepth = FRONT - Z0;
-  const water = new Water(new THREE.PlaneGeometry(1500, waterDepth), {
+  // 映り込みのある水は1枚。ふだんは断面（FRONT）まで、空から見るときは手前の世界の端まで広げる
+  const WATER_FULL = FRONT + 380 - Z0;
+  const water = new Water(new THREE.PlaneGeometry(1500, WATER_FULL), {
     textureWidth: 512, textureHeight: 512, waterNormals: normals, sunDirection: sun.position.clone().normalize(),
     sunColor: 0x9a9890, waterColor: 0x4f8a8f, distortionScale: 0.5, fog: true, alpha: 1
   });
   water.rotation.x = -Math.PI / 2;
-  water.position.set(560, 0, (Z0 + FRONT) / 2);
+  function setWaterReach(z1) { water.scale.y = (z1 - Z0) / WATER_FULL; water.position.set(560, 0, (Z0 + z1) / 2); }
+  setWaterReach(FRONT);
   water.material.uniforms.size.value = 6;
   scene.add(water);
 
@@ -204,6 +206,7 @@ export function createHome(canvas) {
     }
     extTrees.count = k;
   }
+  extWater.visible = false; // 手前の水も、映り込みのある水と同じものを使う（上の setWaterReach）
   const extGroup = new THREE.Group(); extGroup.add(extLand, extWater, extTrees); extGroup.visible = false; scene.add(extGroup);
 
   // ---------------------------------------------------------------- front cutaway of the water
@@ -369,14 +372,19 @@ export function createHome(canvas) {
     const x = lerp(x0, x1, Math.min(1, Math.max(0, u + (h(2) - 0.5) * 0.06)));
     return new THREE.Vector3(x, 0, z);
   }
+  let tasksSeen = false;
   function setTasks(list) {
+    setTimeout(() => { tasksSeen = true; }, 0);
     const keep = new Set(list.map(t => t.id));
     for (const [id, b] of buoys) if (!keep.has(id) && !b.userData.sinking) { buoyRoot.remove(b); buoys.delete(id); }
     for (const t of list) {
       let b = buoys.get(t.id);
       const key = `${t.u.toFixed(3)},${t.v.toFixed(3)}`;
       const spot = placeUV(t.id, t.u, t.v);
-      if (!b) { b = makeBuoy(t); buoys.set(t.id, b); buoyRoot.add(b); b.position.copy(spot); }
+      if (!b) {
+        b = makeBuoy(t); buoys.set(t.id, b); buoyRoot.add(b); b.position.copy(spot);
+        if (tasksSeen) { b.userData.riseT = 0; splash(spot); } // あとから追加したものは、水の中から浮かび上がる
+      }
       else if (b.userData.key !== key) b.userData.target = spot;
       b.userData.key = key; b.userData.home = spot;
       b.userData.sec = t.sec;
@@ -600,11 +608,30 @@ export function createHome(canvas) {
 
   // ---------------------------------------------------------------- 時間帯（SunCalc で本物の太陽の高さ）
   const PHASE = {
-    night: { top: 0x0b1626, bot: 0x22344a, fog: 0x1a2838 },
+    night: { top: 0x15274a, bot: 0x3a5274, fog: 0x2e4560 },
     twilight: { top: 0x4a5c82, bot: 0xe2a487, fog: 0x8a8aa0 },
     golden: { top: 0x8db0cd, bot: 0xf2d2ac, fog: 0xd9ccbd }
   };
   let sunAlt = 30;
+
+  // 月：夜でも湖と森が青白く見えるように。ホームのカメラから見える右上の空に置く
+  const moonDir = new THREE.Vector3(0.6, 0.14, -1).normalize();
+  const moon = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+    const halo = g.createRadialGradient(128, 128, 20, 128, 128, 128);
+    halo.addColorStop(0, 'rgba(220,232,255,.55)'); halo.addColorStop(0.35, 'rgba(180,205,240,.18)'); halo.addColorStop(1, 'rgba(160,190,230,0)');
+    g.fillStyle = halo; g.fillRect(0, 0, 256, 256);
+    const disc = g.createRadialGradient(118, 118, 4, 128, 128, 30);
+    disc.addColorStop(0, '#fbfdff'); disc.addColorStop(0.8, '#e6eefb'); disc.addColorStop(1, 'rgba(230,238,251,0)');
+    g.fillStyle = disc; g.beginPath(); g.arc(128, 128, 30, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(170,185,210,.25)'; // うっすら模様
+    for (const [x, y, r] of [[118, 120, 6], [136, 132, 5], [126, 140, 3], [140, 116, 3]]) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, fog: false }));
+    sp.scale.setScalar(420); sp.position.copy(moonDir).multiplyScalar(2000); sp.renderOrder = -1; scene.add(sp); return sp;
+  })();
+  const moonLight = new THREE.DirectionalLight(0xbcd0ff, 0);
+  moonLight.position.copy(moonDir).multiplyScalar(400); scene.add(moonLight);
+  const sunDirTmp = new THREE.Vector3();
   const stars = (() => {
     const N = 1600, a = new Float32Array(N * 3);
     for (let i = 0; i < N; i++) {
@@ -714,7 +741,7 @@ export function createHome(canvas) {
     const extK = sstep(36, 70, cam.py);
     extGroup.visible = extK > 0.01;
     cut.visible = rim.visible = skirt.visible = extK < 0.99;
-    water.visible = extK < 0.5;
+    setWaterReach(extK > 0.01 ? FRONT + 380 : FRONT);
     cut.material.opacity = 1;
     extWaterMat.color.copy(water.material.uniforms.waterColor.value).multiplyScalar(0.95);
     const inside = sstep(FRONT + 1, FRONT - 3, cam.pz) * sstep(0.5, -2, cam.py);
@@ -731,18 +758,23 @@ export function createHome(canvas) {
     scene.background = inside > 0.5 ? fog.color : null;
     sky.visible = inside < 0.95;
     const day = sstep(-6, 12, sunAlt);
-    hemi.intensity = lerp(0.42, lerp(1.5, 1.1, grey), day);
-    hemi.color.set(0x8fa6c8).lerp(tmpC.set(0xdbe9f2), day);
+    hemi.intensity = lerp(0.95, lerp(1.5, 1.1, grey), day);
+    hemi.color.set(0xa9bfe3).lerp(tmpC.set(0xdbe9f2), day);
+    // 月：夜だけ出る。月明かりで物がちゃんと見える
+    moon.visible = night > 0.02 && inside < 0.5; moon.material.opacity = night * (1 - grey * 0.85);
+    moonLight.intensity = 1.1 * night * (1 - grey * 0.6);
     sun.intensity = lerp(1.7, 0.5, grey) * sstep(-3, 10, sunAlt);
     sun.color.set(0xffb27a).lerp(tmpC.set(0xfff2e2), sstep(2, 20, sunAlt));
-    water.material.uniforms.sunColor.value.set(0x9a9890).multiplyScalar(lerp(0.25, 1, day));
+    water.material.uniforms.sunColor.value.set(0x9a9890).multiplyScalar(day).add(tmpC.set(0x9fb6e0).multiplyScalar(0.9 * night * (1 - grey)));
+    // 夜は月の方向の光を水面に映す（月の光の帯）
+    water.material.uniforms.sunDirection.value.copy(sunDirTmp.copy(sun.position).normalize().lerp(moonDir, night).normalize());
     for (const b of buoys.values()) b.userData.lamp.material.emissiveIntensity = (hovered === b.userData.id ? 3.2 : 1.4) * (1 + night * 1.6);
     water.material.uniforms.waterColor.value.copy(waterCol).lerp(tmpC.set(0x5d7478), grey * 0.6);
     water.material.uniforms.time.value = clock * (0.25 + wx.wind * 0.6);
     water.material.uniforms.distortionScale.value = 0.45 + wx.wind * 1.2 + wx.rain * 1.2;
     cutU.uTime.value = clock;
-    cutU.uTop.value.set(0x6fa6a8).multiplyScalar(lerp(0.3, 1, day) * (1 - grey * 0.25));
-    cutU.uDeep.value.set(0x0f2d38).multiplyScalar(lerp(0.45, 1, day));
+    cutU.uTop.value.set(0x6fa6a8).multiplyScalar(lerp(0.5, 1, day) * (1 - grey * 0.25));
+    cutU.uDeep.value.set(0x0f2d38).multiplyScalar(lerp(0.6, 1, day));
     precMat.uniforms.uT.value = clock; precMat.uniforms.uRain.value = wx.rain > 0.3 ? 1 : 0; precMat.uniforms.uSnow.value = wx.snow;
     prec.visible = (wx.rain > 0.05 || wx.snow > 0.05) && inside < 0.5;
     prec.position.set(camera.position.x, 0, camera.position.z - 30);
@@ -767,8 +799,10 @@ export function createHome(canvas) {
       }
       if (u.target) { b.position.lerp(u.target, Math.min(1, dt * 1.5)); if (b.position.distanceTo(u.target) < 0.05) delete u.target; }
       if (u.base) b.scale.setScalar(u.base * (1 + sstep(60, 220, cam.py) * 1.6)); // 空から見るときは大きく
+      if (u.riseT !== undefined) { u.riseT += dt; if (u.riseT > 1.4) delete u.riseT; }
+      const rise = u.riseT !== undefined ? Math.pow(Math.min(1, u.riseT / 1.4), 0.6) : 1;
       const amp = 0.08 + wx.wind * 0.12;
-      b.position.y = Math.sin(clock * 0.9 + u.ph) * amp;
+      b.position.y = Math.sin(clock * 0.9 + u.ph) * amp - (1 - rise) * 4;
       if (u.nudge) { u.nudge = Math.max(0, u.nudge - dt * 1.6); }
       b.rotation.z = Math.sin(clock * 0.7 + u.ph) * (0.04 + wx.wind * 0.06) + (u.nudge ? Math.sin(clock * 22) * 0.3 * u.nudge : 0);
       b.rotation.x = Math.cos(clock * 0.6 + u.ph) * 0.03;

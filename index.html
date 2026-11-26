@@ -18,6 +18,7 @@
 <div class="fade" id="fade"></div>
 <svg id="tagSvg" aria-hidden="true"><path id="tagLines"/></svg>
 <div id="tags"></div>
+<div class="hold" id="hold" aria-hidden="true"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18"/></svg></div>
 
 <nav class="side glass" aria-label="メニュー">
   <i class="ind" id="navInd" aria-hidden="true"></i>
@@ -68,16 +69,17 @@
 
 <div class="pop glass" id="pop"></div>
 <div class="scrim" id="scrim"></div>
-<div class="addbox glass" id="addbox">
+<div class="addbox glass" id="addbox" role="dialog" aria-label="タスクを追加">
+  <div class="addhead"><b>タスクを追加</b><span><kbd>Enter</kbd> 浮かべる　<kbd>Esc</kbd> 閉じる</span></div>
   <form id="addForm"><input id="addInput" autocomplete="off" placeholder="例：明日15時 統計の課題 #大学 1時間 必須" aria-label="タスク"><button class="btn pri">浮かべる</button></form>
   <div class="pv" id="pv"></div>
-  <p>日付・時刻・「1時間」「30分」・「#海域」・「必須／自主」・「軽い／重い」・「毎日／毎週」・「いつか」を読み取ります。Enter で浮かべる、Esc で閉じる。</p>
+  <div class="quick" id="quick"></div>
 </div>
 <div class="pop glass" id="envMenu" style="left:240px;bottom:24px"></div>
 <div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastUndo">元に戻す</button></div>
 
-<script src="env.js?v=11"></script>
-<script src="firebase-config.js?v=11"></script>
-<script type="module" src="home.js?v=11"></script>
+<script src="env.js?v=14"></script>
+<script src="firebase-config.js?v=14"></script>
+<script type="module" src="home.js?v=14"></script>
 </body>
 </html>
