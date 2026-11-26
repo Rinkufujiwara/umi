@@ -1,9 +1,9 @@
 // Umi ホーム：湖に浮かぶブイ＝タスク。終えたら沈める。ホイールはページではなくカメラを動かす
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=4';
-import { parseQuick } from './parse.js?v=4';
-import * as St from './store.js?v=4';
+import { createHome } from './home-scene.js?v=9';
+import { parseQuick } from './parse.js?v=9';
+import * as St from './store.js?v=9';
 gsap.registerPlugin(Observer);
 
 const $ = id => document.getElementById(id);
@@ -17,7 +17,7 @@ document.documentElement.classList.add('ready');
 
 // ---------------------------------------------------------------- 表示
 const SEC_NAME = { surface: '水面', shallows: '浅瀬', depths: '深み' };
-const KIND_COLOR = { must: '#e07a68', self: '#5fb3b0', none: '#bac8cf' };
+const KIND_COLOR = { must: '#e0533f', self: '#f2b134', none: '#c9c4b8' };
 const live = () => S.tasks.filter(t => !t.done);
 // そろそろ危ない：遅れ・必須で明日まで・今日の時刻まで3時間以内
 function urgent(t) {
@@ -54,12 +54,11 @@ function render() {
   const hr = d.getHours();
   const hello = hr < 4 ? 'こんばんは' : hr < 11 ? 'おはようございます' : hr < 18 ? 'こんにちは' : 'こんばんは';
   const urg = L.filter(urgent).length, today = cnt('surface');
-  const msg = urg ? `急ぎが${urg}件あります。まずはそこから。` : today ? '今日は何から沈めましょう？' : '今日の水面は凪いでいます。';
-  $('hello').textContent = `${hello}。${msg}`;
-  $('summary').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${St.WD[d.getDay()]}）`;
+  $('hello').textContent = hello;
+  $('summary').innerHTML = `${d.getMonth() + 1}月${d.getDate()}日（${St.WD[d.getDay()]}）${urg ? `　<span class="late">急ぎ ${urg}件</span>` : ''}`;
   // 件数は「一覧（空から見る）」に出す
-  $('mapSub').innerHTML = `浮かんでいるタスク <b>${L.length}件</b>（今日 ${today}${urg ? `・<span class="late">急ぎ ${urg}</span>` : ''}・今週 ${cnt('shallows')}・いつか ${cnt('depths')}）` +
-    `${late ? `　<span class="late">遅れ ${late}件</span>` : ''}<br>この7日で <b>${sunk}件</b> 沈めました。ブイを押すと、沈める・のばす・軽くするができます。`;
+  $('mapSub').innerHTML = `浮かんでいる <b>${L.length}件</b>（今日 ${today}${urg ? `・<span class="late">急ぎ ${urg}</span>` : ''}・今週 ${cnt('shallows')}・いつか ${cnt('depths')}）` +
+    `${late ? `・<span class="late">遅れ ${late}</span>` : ''}　この7日で <b>${sunk}件</b> 沈めた`;
   // 忙しさ → 湖の天気と波
   // 今日の潮位（見積もり ÷ 1日に使える時間）を土台に、7日先までの詰まり・遅れ・急ぎを足す
   const in7 = St.plusDays(6);
@@ -72,14 +71,15 @@ function render() {
   $('tide').innerHTML = `今日の潮位 <b>${estLabel(plan) || '0分'}</b> ／ ${estLabel(B)}　<span class="rest">${over ? `${estLabel(plan - B)}多い` : `あと${estLabel(B - plan) || '0分'}`}</span><div class="bar"><i style="width:${Math.min(100, plan / B * 100)}%"></i></div>`;
 
   // 今日の優先タスク（凪モードでは3件だけ）
-  const top = rank(L.filter(t => secOf(t) === 'surface')).slice(0, 3);
-  $('cards').innerHTML = top.length ? top.map(cardHTML).join('') : '<div class="empty">今日の水面は凪いでいます。</div>';
-  const f = top[0];
-  $('focus').innerHTML = f ? `${cardHTML(f)}<div class="go"><button class="btn pri" data-sink="${f.id}">終えて沈める</button><button class="btn" data-later="${f.id}">あとで（明日へ）</button></div>`
+  const ranked = rank(L.filter(t => secOf(t) === 'surface'));
+  const f = ranked[0], top = ranked.slice(1, 4);
+  $('cards').innerHTML = top.length ? top.map(cardHTML).join('') : '<div class="empty">ほかにはありません</div>';
+  focusId = f ? f.id : null;
+  $('focus').innerHTML = f ? `${cardHTML(f)}<div class="go"><button class="btn pri" data-sink="${f.id}">沈める</button><button class="btn" data-later="${f.id}">明日へ</button></div>`
     : '<div class="empty">急ぐものはありません。</div>';
   $('calmBtn').setAttribute('aria-pressed', String(calm));
   const doneN = S.tasks.filter(t => t.done).length;
-  $('bedCount').textContent = `湖底　終えたもの ${doneN}件`;
+  $('bedCount').textContent = `湖底　${doneN}`;
   renderBed();
 }
 function cardHTML(t) {
@@ -104,13 +104,15 @@ function renderBed() {
 
 // ---------------------------------------------------------------- 名札（ブイの上の文字）
 const tagEls = new Map();
+let focusId = null;
 let hlId = null;
 home.onFrame((pts, { inside }) => {
   const seen = new Set();
   // 名札：手前を最優先、次に右。常に出すのは上位3つ。ほかはカーソルを合わせたときだけ
-  const SHOW = station === 'map' ? 999 : 3;
+  const SHOW = station === 'map' ? 999 : 0;
   const order = pts.slice().sort((a, b) => (Math.round(a.dist / 22) - Math.round(b.dist / 22)) || (b.x - a.x));
   const always = new Set(order.slice(0, SHOW).map(p => p.id));
+  if (station !== 'map' && focusId) always.add(focusId);
   // ぶつかってはいけない場所：ほかのブイ、上のパネル、左の列
   const blocks = [];
   for (const sel of ['#top .panel', '#top .hdr', '.side', '#axis', '#mapview.on']) document.querySelectorAll(sel).forEach(el => { if (el.closest('.away')) return; const r = el.getBoundingClientRect(); if (r.width) blocks.push({ l: r.left - 4, t: r.top - 4, r: r.right + 4, b: r.bottom + 4 }); });
@@ -227,7 +229,7 @@ function openPop(id, x, y) {
     ${t.notes ? `<div class="m">${esc(t.notes)}</div>` : ''}
     <div class="wt">重さ ${[1, 2, 3].map(w => `<button class="btn${(t.weight || 2) === w ? ' pri' : ''}" data-weight="${w}">${St.WEIGHT[w]}</button>`).join('')}</div>
     ${later}
-    <div class="go"><button class="btn pri" data-sink="${t.id}">終えて沈める</button>${moves}<a class="btn" href="list.html" style="text-decoration:none">一覧で編集</a></div>`;
+    <div class="go"><button class="btn pri" data-sink="${t.id}">沈める</button>${moves}<a class="btn" href="list.html" style="text-decoration:none">一覧で編集</a></div>`;
   const pop = $('pop'); pop.classList.add('open');
   const w = 290, h = pop.offsetHeight;
   pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, x - w / 2))}px`;
@@ -348,7 +350,12 @@ function goTo(name) {
   if (name === station || moving) return;
   const wasHome = station === 'home', from = station;
   moving = true; station = name; closePop(); closeAdd();
-  const st = home.stationFor(name);
+  // 空から見るときは、左の列と上のパネルの実際の大きさを測って、その外にブイを収める
+  const side = document.querySelector('.side').getBoundingClientRect(), mv = $('mapview');
+  const ins = { left: (innerWidth > 820 ? side.right : 0) + 18, top: mv.offsetTop + mv.offsetHeight + 18, right: 24, bottom: 24 };
+  const st = home.stationFor(name, ins);
+  // 移動中は名札を消す（チカチカするので）
+  document.body.classList.add('moving');
   const down = name === 'bed';
   document.querySelectorAll('.side .nav[data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === name));
   const up = name === 'map';
@@ -363,11 +370,11 @@ function goTo(name) {
   if ((from === 'map' && name === 'bed') || (from === 'bed' && name === 'map')) {
     const f = $('fade');
     f.classList.add('on');
-    setTimeout(() => { home.jumpTo(st); $('bedview').classList.toggle('on', down); setTimeout(() => { f.classList.remove('on'); moving = false; }, 120); }, 380);
+    setTimeout(() => { home.jumpTo(st); $('bedview').classList.toggle('on', down); setTimeout(() => { f.classList.remove('on'); moving = false; document.body.classList.remove('moving'); }, 120); }, 380);
   } else {
     if (!down) $('bedview').classList.remove('on');
     setTimeout(() => { if (station === 'bed') $('bedview').classList.add('on'); }, wasHome ? 1000 : 0);
-    home.flyTo(st, 1.8).then(() => { moving = false; });
+    home.flyTo(st, 1.8).then(() => { moving = false; document.body.classList.remove('moving'); });
   }
 }
 document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) goTo(g.dataset.go); });

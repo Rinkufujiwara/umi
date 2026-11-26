@@ -186,11 +186,11 @@ export function createHome(canvas) {
   const extCol = new Float32Array(extGeo.attributes.position.count * 3);
   extGeo.setAttribute('color', new THREE.BufferAttribute(extCol, 3));
   const extLand = new THREE.Mesh(extGeo, terrain.material);
-  const extWaterMat = new THREE.MeshStandardMaterial({ color: 0x4f8a8f, roughness: 0.22, metalness: 0.1 });
+  const extWaterMat = new THREE.MeshStandardMaterial({ color: 0x4f8a8f, roughness: 0.75, metalness: 0, envMapIntensity: 0.25 });
   normals.repeat.set(1, 1);
-  extWaterMat.normalMap = normals; extWaterMat.normalScale.set(0.35, 0.35);
-  const extWater = new THREE.Mesh(new THREE.PlaneGeometry(1500, EXT_Z1 - FRONT), extWaterMat);
-  extWater.rotation.x = -Math.PI / 2; extWater.position.set(560, 0.02, (FRONT + EXT_Z1) / 2);
+  extWaterMat.normalMap = normals; extWaterMat.normalScale.set(0.22, 0.22);
+  const extWater = new THREE.Mesh(new THREE.PlaneGeometry(1500, EXT_Z1 - Z0), extWaterMat);
+  extWater.rotation.x = -Math.PI / 2; extWater.position.set(560, 0.03, (Z0 + EXT_Z1) / 2);
   const extTrees = new THREE.InstancedMesh(pine, trees.material, 1600);
   const extTreeData = [];
   {
@@ -257,7 +257,7 @@ export function createHome(canvas) {
     return new THREE.LatheGeometry(prof, 12);
   })();
   const capGeo = new THREE.ConeGeometry(0.42, 0.75, 8); capGeo.translate(0, 0.62, 0);
-  const KIND = { must: 0xe07a68, self: 0x5fb3b0, none: 0xbac8cf };
+  const KIND = { must: 0xe0533f, self: 0xf2b134, none: 0xf4f1ea };
   const heapBody = new THREE.InstancedMesh(buoyGeo, new THREE.MeshStandardMaterial({ color: 0xdfe8e8, roughness: 0.6, flatShading: true }), HEAP_MAX);
   const heapCap = new THREE.InstancedMesh(capGeo, new THREE.MeshStandardMaterial({ roughness: 0.6, flatShading: true }), HEAP_MAX);
   heapBody.count = heapCap.count = 0; scene.add(heapBody, heapCap);
@@ -436,55 +436,80 @@ export function createHome(canvas) {
     });
   }
 
-  // ---------------------------------------------------------------- 跳ねる魚（そろそろ危ないタスクの知らせ）
+  // ---------------------------------------------------------------- 小さな背びれ（そろそろ危ないタスクを、横からつついて揺らす）
   const ringSmall = new THREE.RingGeometry(0.5, 0.62, 28); ringSmall.rotateX(-Math.PI / 2);
-  const leapGeo = (() => {
-    const body = new THREE.IcosahedronGeometry(1, 1); body.scale(0.32, 0.42, 1.05);
-    const tail = new THREE.ConeGeometry(0.42, 0.7, 4); tail.rotateX(-Math.PI / 2); tail.scale(0.25, 1, 1); tail.translate(0, 0, -1.25);
-    const fin = new THREE.ConeGeometry(0.18, 0.5, 3); fin.translate(0, 0.45, 0.05);
-    const g = mergeGeometries([body.toNonIndexed(), tail.toNonIndexed(), fin.toNonIndexed()]); g.computeVertexNormals(); return g;
+  const finGeo = (() => {
+    const sh = new THREE.Shape();
+    sh.moveTo(-1.1, 0); sh.quadraticCurveTo(-0.2, 0.6, 0.35, 2.1); sh.quadraticCurveTo(0.45, 1.0, 1.0, 0); sh.lineTo(-1.1, 0);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.22, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 1, curveSegments: 5 });
+    g.translate(0, -0.35, -0.11); g.rotateY(Math.PI / 2);
+    return g.toNonIndexed();
   })();
-  const leapMat = new THREE.MeshStandardMaterial({ color: 0x9cc3cc, roughness: 0.35, metalness: 0.3, flatShading: true });
-  const alerts = new Map();  // taskId -> { timer }
-  const leaps = [];
+  const finMat = new THREE.MeshStandardMaterial({ color: 0x4f5f68, roughness: 0.55, flatShading: true });
+  // 水の中の黒い影（どの角度から見てもサメと分かるように）
+  const shadowTex = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(32, 56, 2, 32, 64, 60); gr.addColorStop(0, 'rgba(10,30,40,.75)'); gr.addColorStop(1, 'rgba(10,30,40,0)');
+    g.fillStyle = gr; g.beginPath(); g.ellipse(32, 64, 18, 58, 0, 0, Math.PI * 2); g.fill(); return new THREE.CanvasTexture(c); })();
+  const shadowGeo = new THREE.PlaneGeometry(1.6, 4.6); shadowGeo.rotateX(-Math.PI / 2);
+  const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.8 });
+  const alerts = new Map();  // taskId -> fin
   function setAlerts(ids) {
     const want = new Set(ids.slice(0, 3));
-    for (const id of alerts.keys()) if (!want.has(id)) alerts.delete(id);
+    for (const [id, f] of alerts) if (!want.has(id) && f.leaving === undefined) f.leaving = 0;
     let k = 0;
-    for (const id of want) if (!alerts.has(id)) alerts.set(id, { timer: 0.8 + (k++) * 1.7 + Math.random() * 1.2 });
-  }
-  function smallSplash(p, n = 8) {
-    const m = new THREE.Mesh(ringSmall, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, depthWrite: false }));
-    m.position.set(p.x, 0.06, p.z); m.scale.setScalar(1.6); buoyRoot.add(m); fx.push({ m, t: 0, kind: 'wake' });
-    for (let i = 0; i < n; i++) {
-      const d = new THREE.Mesh(dropGeo, dropMat); d.position.set(p.x, 0.2, p.z); buoyRoot.add(d);
-      const a = Math.random() * 6.28, sp = 1 + Math.random() * 2;
-      fx.push({ m: d, t: 0, kind: 'drop', v: new THREE.Vector3(Math.cos(a) * sp, 3 + Math.random() * 3, Math.sin(a) * sp) });
+    for (const id of want) {
+      if (alerts.has(id) && alerts.get(id).leaving === undefined) continue;
+      const b = buoys.get(id); if (!b) continue;
+      const g = new THREE.Group();
+      const fin = new THREE.Mesh(finGeo, finMat), sh = new THREE.Mesh(shadowGeo, shadowMat);
+      sh.position.y = -0.25; g.add(fin, sh);
+      g.scale.setScalar(1.5);
+      const a0 = Math.random() * 6.28;
+      g.position.set(b.position.x + Math.cos(a0) * 14, -2.5, b.position.z + Math.sin(a0) * 14);
+      buoyRoot.add(g);
+      alerts.set(id, { g, fin, t: -(k++) * 2.3, rise: 0, wake: 0, rest: new THREE.Vector3() });
     }
+  }
+  const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3();
+  function steer(f, to, speed, dt) {
+    const p = f.g.position; tmpV.set(to.x - p.x, 0, to.z - p.z);
+    const d = tmpV.length(); if (d < 0.01) return 0;
+    const step = Math.min(d, speed * dt); p.x += tmpV.x / d * step; p.z += tmpV.z / d * step;
+    p.z = Math.min(p.z, FRONT - 4); p.x = Math.max(p.x, shoreL(p.z) + 3);
+    const yaw = Math.atan2(tmpV.x, tmpV.z);
+    f.g.rotation.y += (((yaw - f.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 4);
+    return d;
   }
   function updateAlerts(dt) {
-    for (const [id, al] of alerts) {
-      const b = buoys.get(id);
-      if (!b || b.userData.sinking || !b.visible) continue;
-      al.timer -= dt;
-      if (al.timer > 0) continue;
-      al.timer = 6 + Math.random() * 3;   // 6〜9秒に1回
-      const s = b.scale.x / 3.4, a = Math.random() * 6.28, R = 5 * s, span = 7 * s;
-      const from = new THREE.Vector3(b.position.x + Math.cos(a) * R, 0, b.position.z + Math.sin(a) * R);
-      const dir = new THREE.Vector3(-Math.sin(a), 0, Math.cos(a));
-      const to = from.clone().addScaledVector(dir, span);
-      const m = new THREE.Mesh(leapGeo, leapMat); m.scale.setScalar(1.5 * s); buoyRoot.add(m);
-      leaps.push({ m, from, to, t: 0, dur: 1.05, h: 3.6 * s });
-      smallSplash(from);
-    }
-    for (let i = leaps.length - 1; i >= 0; i--) {
-      const L = leaps[i]; L.t += dt;
-      const k = Math.min(1, L.t / L.dur);
-      const p = L.from.clone().lerp(L.to, k); p.y = Math.sin(Math.PI * k) * L.h - 0.2;
-      const vy = Math.cos(Math.PI * k) * Math.PI * L.h / L.dur, vh = L.from.distanceTo(L.to) / L.dur;
-      L.m.position.copy(p);
-      L.m.lookAt(p.x + (L.to.x - L.from.x), p.y + vy * 0.25 * (L.from.distanceTo(L.to) / vh), p.z + (L.to.z - L.from.z));
-      if (k >= 1) { smallSplash(L.to, 10); buoyRoot.remove(L.m); leaps.splice(i, 1); }
+    for (const [id, f] of alerts) {
+      const b = buoys.get(id), p = f.g.position;
+      f.t += dt;
+      if (f.leaving !== undefined || !b || b.userData.sinking) {   // 潜って去る
+        f.leaving = (f.leaving || 0) + dt; p.y -= dt * 2;
+        if (f.leaving > 1.5) { buoyRoot.remove(f.g); alerts.delete(id); }
+        continue;
+      }
+      if (f.t < 0) continue;
+      f.rise = Math.min(1, f.rise + dt * 0.7);
+      p.y = lerp(-2.5, 0, f.rise) + Math.sin(f.t * 2.2) * 0.05;
+      f.g.visible = b.visible;
+      // ブイのすぐそばにとどまり、トン、トン、と一定のリズムでつつき続ける（約1.4秒ごと）
+      const bp = b.position, s = b.scale.x / 3.4, c = f.t % 1.4;
+      f.rest.set(bp.x - 3.6 * s, 0, bp.z + 1.4 * s);
+      tmpV2.set(bp.x - 2.0 * s, 0, bp.z + 0.7 * s);
+      let moving = false;
+      if (f.rise < 0.95 || f.g.position.distanceTo(f.rest) > 6 * s) moving = steer(f, f.rest, 8, dt) > 0.3; // まず近くまで泳いでくる
+      else if (c < 0.35) steer(f, tmpV2, 7, dt);                                                     // 鼻先を当てる
+      else if (c < 0.45) { if (!f.bumped) { b.userData.nudge = 1; f.bumped = true; } }               // トン
+      else { f.bumped = false; steer(f, f.rest, 4, dt); }                                            // 少しだけ下がる
+      // 鼻先はいつもブイのほうへ
+      if (!moving) { const yaw = Math.atan2(bp.x - f.g.position.x, bp.z - f.g.position.z); f.g.rotation.y += (((yaw - f.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 6); }
+      f.wake += dt;
+      if (moving && f.wake > 0.25 && f.rise > 0.6) {
+        f.wake = 0;
+        const m = new THREE.Mesh(ringSmall, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }));
+        m.position.set(p.x, 0.05, p.z); buoyRoot.add(m); fx.push({ m, t: 0, kind: 'wake' });
+      }
     }
   }
 
@@ -494,10 +519,17 @@ export function createHome(canvas) {
     const r = canvas.getBoundingClientRect();
     ndc.set((clientX - r.left) / r.width * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const hits = ray.intersectObjects([...buoys.values()].filter(b => b.visible && !b.userData.sinking), true);
-    if (!hits.length) return null;
-    let o = hits[0].object; while (o && !o.userData.id) o = o.parent;
-    return o?.userData.id || null;
+    const list = [...buoys.values()].filter(b => b.visible && !b.userData.sinking);
+    const hits = ray.intersectObjects(list, true);
+    if (hits.length) { let o = hits[0].object; while (o && !o.userData.id) o = o.parent; if (o) return o.userData.id; }
+    // 当たらなくても、画面上でいちばん近いブイ（30px 以内）を選ぶ。遠くの小さいブイも押しやすく
+    let best = null, bd = 30;
+    for (const b of list) {
+      const v = b.position.clone(); v.y += 0.6 * b.scale.y; v.project(camera);
+      const x = (v.x + 1) / 2 * r.width + r.left, y = (1 - v.y) / 2 * r.height + r.top, d = Math.hypot(x - clientX, y - clientY);
+      if (d < bd) { bd = d; best = b.userData.id; }
+    }
+    return best;
   }
   let hovered = null;
   function setHover(id) {
@@ -609,10 +641,12 @@ export function createHome(canvas) {
   let fly = null;   // { p0, p1, q0, q1, u0, u1, t, dur, res }
   const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   function flyTo(st, dur) {
-    return new Promise(res => { fly = { p0: camPos.clone(), p1: new THREE.Vector3(...st.pos), q0: camQuat.clone(), q1: qFrom(st.pos, st.look, st.up), u0: cam.uf, u1: st.uf, t: 0, dur, res }; });
+    return new Promise(res => { fly = { p0: camPos.clone(), p1: new THREE.Vector3(...st.pos), q0: camQuat.clone(), q1: qFrom(st.pos, st.look, st.up), u0: cam.uf, u1: st.uf, start: performance.now(), dur, res }; });
   }
   function jumpTo(st) { fly = null; camPos.set(...st.pos); camQuat.copy(qFrom(st.pos, st.look, st.up)); cam.uf = st.uf; }
-  function stationFor(name) {
+  let insets = { left: 250, top: 170, right: 20, bottom: 20 };
+  function stationFor(name, ins) {
+    if (ins) insets = ins;
     const st = stationRaw(name); st.up = UP[name] || UP.home; return st;
   }
   function stationRaw(name) {
@@ -622,9 +656,9 @@ export function createHome(canvas) {
       for (const b of buoys.values()) { if (b.userData.sinking || !b.visible) continue; const p = b.userData.home || b.position; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
       if (!isFinite(x0)) { x0 = -40; x1 = 80; z0 = -200; z1 = 10; }
       // 空からは回して見る：画面の上＝陸（軽い）、下＝沖（重い）、左＝急ぐ（手前 +z）、右＝余裕（奥）
-      const w = innerWidth, hgt = innerHeight, leftPx = w > 820 ? 250 : 0, topPx = w > 820 ? 170 : 200;
-      const spanH = Math.max(60, z1 - z0) + 30, spanV = Math.max(60, x1 - x0) + 30;
-      const fracW = (w - leftPx - 30) / w, fracH = (hgt - topPx - 30) / hgt, tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const w = innerWidth, hgt = innerHeight, leftPx = insets.left, topPx = insets.top;
+      const spanH = Math.max(60, z1 - z0) + 40, spanV = Math.max(60, x1 - x0) + 40;
+      const fracW = (w - leftPx - insets.right) / w, fracH = (hgt - topPx - insets.bottom) / hgt, tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const h = Math.max(spanV / (2 * tanV * fracH), spanH / (2 * tanV * camera.aspect * fracW));
       const visW = 2 * h * tanV * camera.aspect, visH = 2 * h * tanV;
       const cz = (z0 + z1) / 2 + visW * (leftPx / w) / 2, cx = (x0 + x1) / 2 - visH * (topPx / hgt) / 2;
@@ -661,7 +695,7 @@ export function createHome(canvas) {
     // カメラ
     pointer.sx += (pointer.x - pointer.sx) * Math.min(1, dt * 1.5); pointer.sy += (pointer.y - pointer.sy) * Math.min(1, dt * 1.5);
     if (fly) { // 位置と向きを同時に、なめらかに
-      fly.t += dt; const k = Math.min(1, fly.t / fly.dur), e = easeIO(k);
+      const k = Math.min(1, (now - fly.start) / 1000 / fly.dur), e = easeIO(k); // 実時間で進める（コマ落ちしても長さは同じ）
       camPos.lerpVectors(fly.p0, fly.p1, e); camQuat.slerpQuaternions(fly.q0, fly.q1, e); cam.uf = lerp(fly.u0, fly.u1, e);
       if (k >= 1) { const r = fly.res; fly = null; r(); }
     }
@@ -674,6 +708,7 @@ export function createHome(canvas) {
     const extK = sstep(36, 70, cam.py);
     extGroup.visible = extK > 0.01;
     cut.visible = rim.visible = skirt.visible = extK < 0.99;
+    water.visible = extK < 0.5;
     cut.material.opacity = 1;
     extWaterMat.color.copy(water.material.uniforms.waterColor.value).multiplyScalar(0.95);
     const inside = sstep(FRONT + 1, FRONT - 3, cam.pz) * sstep(0.5, -2, cam.py);

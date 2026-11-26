@@ -256,3 +256,45 @@ body.map .tag { font-size: 11px; padding: 3px 8px; }
 .side .nav, .side .brand { text-shadow: 0 0 10px var(--halo), 0 0 3px var(--halo), 0 0 1px var(--halo); }
 .side .nav small { opacity: .85; }
 .ticks { display: none; }
+
+/* 移動中は名札を消す */
+body.moving #tags, body.moving #tagSvg { opacity: 0 !important; transition: opacity .15s; }
+#tags, #tagSvg { transition: opacity .35s; }
+/* 一覧のパネルは短く（ブイにかぶらない） */
+.mapview { max-width: 560px; padding: 12px 16px; }
+.mapview h1 { font-size: 16px; }
+.mapview .sub { margin: 4px 0 8px; font-size: 12px; white-space: nowrap; }
+.mapview .legend { flex-direction: row; gap: 16px; margin-bottom: 8px; white-space: nowrap; }
+/* 自主＝山吹色（湖の青と紛れないように） */
+.badge.self { color: #9a6b00; background: rgba(242,177,52,.22); }
+html[data-night="1"] .badge.self { color: #f2c35a; }
+
+@media (max-width: 820px) { .mapview .sub, .mapview .legend { white-space: normal; } }
+
+/* ---- ガラスの統一（すべてのパネル・カード・ボタンで同じ値） ---- */
+:root {
+  --g-bg: rgba(238,245,246,.42); --g-bg-strong: rgba(250,253,253,.66); --g-blur: blur(16px) saturate(1.25);
+  --g-line: 1px solid rgba(255,255,255,.5); --g-shadow: 0 8px 28px rgba(20,50,60,.10);
+  --r-panel: 16px; --r-card: 12px; --r-pill: 999px;
+}
+html[data-night="1"] { --g-bg: rgba(18,38,48,.48); --g-bg-strong: rgba(32,58,68,.62); --g-line: 1px solid rgba(255,255,255,.12); }
+.glass, .side, .mapview, .pop, .addbox, .bedview .list { background: var(--g-bg); backdrop-filter: var(--g-blur); -webkit-backdrop-filter: var(--g-blur);
+  border: var(--g-line); border-radius: var(--r-panel); box-shadow: var(--g-shadow); }
+.side { background: rgba(238,245,246,.24); }
+html[data-night="1"] .side { background: rgba(18,38,48,.3); }
+.card, .tide, .calm, .calm[aria-pressed="false"] { background: var(--g-bg-strong); border: var(--g-line); border-radius: var(--r-card); box-shadow: none; }
+.addbtn { border-radius: var(--r-card); }
+.btn, .tag, .badge { border-radius: var(--r-pill); }
+
+/* ---- 文字の強弱：タスク名ははっきり、補足は小さく控えめに ---- */
+.card .t { font-size: 15px; font-weight: 600; color: var(--ink); }
+.card .m { font-size: 12px; color: var(--sub); }
+.panel h2 { font-size: 13px; font-weight: 600; color: var(--sub); letter-spacing: .04em; }
+.greet h1 { font-size: 22px; }
+.greet .meta .late { color: var(--must); }
+
+/* ---- 湖底への入口は短く ---- */
+.bedhint { display: flex; align-items: baseline; gap: 10px; cursor: default; }
+.bedhint .arrow { font-size: 16px; opacity: .85; animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .bedhint .arrow { animation: none; } }

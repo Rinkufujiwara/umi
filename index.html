@@ -23,11 +23,11 @@
   <i class="ind" id="navInd" aria-hidden="true"></i>
   <div class="brand">Umi</div>
   <button class="nav on" data-go="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>ホーム</button>
-  <button class="nav" data-go="map"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>一覧<small>空から見る</small></span></button>
-  <button class="nav" data-go="bed"><svg viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20"/></svg><span>湖底<small>終えたもの</small></span></button>
-  <button class="nav" disabled title="これから作ります"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg><span>ダイブ<small>集中タイマー（準備中）</small></span></button>
+  <button class="nav" data-go="map" title="空から見る"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>一覧</button>
+  <button class="nav" data-go="bed" title="終えたタスク"><svg viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20"/></svg>湖底</button>
+  <button class="nav" disabled title="集中タイマー（準備中）"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg>ダイブ</button>
   <div class="grow"></div>
-  <button class="nav" id="envNav"><svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg><span>湖のようす<small id="envSmall">自動</small></span></button>
+  <button class="nav" id="envNav"><svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg><span>湖のようす</span><small id="envSmall" hidden></small></button>
 </nav>
 
 <div class="top" id="top">
@@ -44,18 +44,18 @@
   </div>
   <div class="row">
     <section class="panel glass"><h2>今日の優先タスク</h2><div class="cards" id="cards"></div></section>
-    <section class="panel glass focus"><h2>いまの一つ<small>次にやること</small></h2><div id="focus"></div></section>
+    <section class="panel glass focus"><h2>いまの一つ</h2><div id="focus"></div></section>
   </div>
 </div>
 
-<div class="axis" id="axis"><span>手前ほど急ぐ・奥ほど余裕</span><span>左は軽い ←　→ 右ほど重い</span></div>
-<div class="bedhint" id="bedhint"><b id="bedCount">湖底　終えたもの</b><span>下へスクロールすると、湖底へ潜ります</span></div>
+<div class="axis" id="axis" hidden></div>
+<div class="bedhint" id="bedhint" title="下へスクロールで湖底へ"><b id="bedCount">湖底</b><span class="arrow" aria-hidden="true">↓</span></div>
 <div class="ticks" id="ticks"><i style="top:30%">-10m</i><i style="top:62%">-30m</i></div>
 
 <div class="mapview" id="mapview">
   <h1>一覧　空から見る</h1>
   <p class="sub" id="mapSub"></p>
-  <div class="legend"><span>左ほど急ぐ　右ほど余裕がある</span><span>上（陸側）は軽い　下（沖）ほど重い</span><span>左下が「重くて急ぐ」もの</span></div>
+  <div class="legend"><span>← 急ぐ　　余裕 →</span><span>↑ 軽い（陸側）　　重い（沖）↓</span></div>
   <div class="levels"><a class="btn" href="list.html">表で見る</a><button class="btn" data-go="home">水面へ戻る</button></div>
 </div>
 <div class="bedview" id="bedview">
@@ -75,7 +75,7 @@
 <div class="pop glass" id="envMenu" style="left:240px;bottom:24px"></div>
 <div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastUndo">元に戻す</button></div>
 
-<script src="env.js?v=4"></script>
-<script type="module" src="home.js?v=4"></script>
+<script src="env.js?v=9"></script>
+<script type="module" src="home.js?v=9"></script>
 </body>
 </html>
