@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Umi</title>
-<link rel="stylesheet" href="home.css?v=20">
+<link rel="stylesheet" href="home.css?v=21b">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
@@ -41,7 +41,7 @@
     <div class="acts">
       <div class="tide" id="tide" title="今日の見積もりの合計 ／ 1日に使える時間"></div>
       <button class="calm" id="calmBtn" aria-pressed="false" title="オンにすると、いまやる3件だけを浮かべます"><span class="sw"><i></i></span><b>凪モード</b></button>
-      <button class="addbtn" id="addBtn">＋ タスクを追加</button>
+      <button class="addbtn" id="addBtn">＋ <span class="long">タスクを</span>追加</button>
     </div>
   </div>
   <div class="row">
@@ -51,7 +51,7 @@
 </div>
 
 <div class="axis" id="axis" hidden></div>
-<div class="bedhint" id="bedhint" title="下へスクロールで湖底へ"><b id="bedCount">湖底</b><span class="arrow" aria-hidden="true">↓</span></div>
+<div class="bedhint" id="bedhint" title="湖底へ（下へスクロールでも）" role="button" tabindex="0" data-go="bed"><b id="bedCount">湖底</b><span class="arrow" aria-hidden="true">↓</span></div>
 <div class="ticks" id="ticks"><i style="top:30%">-10m</i><i style="top:62%">-30m</i></div>
 
 <div class="mapview" id="mapview">
@@ -76,6 +76,13 @@
   <div class="quick" id="quick"></div>
 </div>
 <div class="pop glass" id="envMenu" style="left:240px;bottom:24px"></div>
+<nav class="mbar glass" aria-label="メニュー">
+  <button data-go="home" class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>ホーム</button>
+  <button data-go="map"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>一覧</button>
+  <button data-go="bed"><svg viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20"/></svg>湖底</button>
+  <button data-dive-open><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg>ダイブ</button>
+  <button id="mEnv"><svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>設定</button>
+</nav>
 <div class="dive" id="dive" hidden>
   <div class="dsetup glass" id="dSetup" role="dialog" aria-label="ダイブ">
     <div class="addhead"><b>ダイブ</b><span>ひとつのタスクに潜る</span></div>
@@ -89,7 +96,7 @@
     <div class="dtask" id="dTaskName"></div>
     <div class="dtime" id="dTime">25:00</div>
     <div class="dsub2" id="dSub"></div>
-    <form id="dBubbleForm" autocomplete="off"><input id="dBubble" placeholder="浮かんだ考えは、ここに書いて Enter（泡になって上っていきます）" aria-label="泡メモ"></form>
+    <form id="dBubbleForm" autocomplete="off"><input id="dBubble" placeholder="浮かんだ考えを書いて Enter（泡になって上へ）" aria-label="泡メモ"></form>
     <button class="btn" id="dUp" type="button">浮上する</button>
   </div>
   <div class="dgauge" id="dGauge" aria-hidden="true"><i id="dDepth"></i><span id="dDepthTxt">0m</span></div>
@@ -102,8 +109,8 @@
 </div>
 <div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastUndo">元に戻す</button></div>
 
-<script src="env.js?v=20"></script>
-<script src="firebase-config.js?v=20"></script>
-<script type="module" src="home.js?v=20"></script>
+<script src="env.js?v=21"></script>
+<script src="firebase-config.js?v=21"></script>
+<script type="module" src="home.js?v=21"></script>
 </body>
 </html>

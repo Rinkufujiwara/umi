@@ -456,3 +456,39 @@ html[data-night="1"] .pop .go .del { color: #ffb3a6; background: rgba(224,83,63,
 html[data-night="1"] .mapview .calmnote { color: #9fd6dc; }
 /* 15: 長押しで文字選択やメニューが出ないように */
 #scene, #tags .tag { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+/* ---- 改善 第2セット ---- */
+/* 1: スマホの下のメニュー */
+.mbar { display: none; }
+@media (max-width: 820px) {
+  .mbar { display: flex; position: fixed; left: var(--edge); right: var(--edge); bottom: var(--edge); z-index: 6; height: 56px; padding: 4px; border-radius: 16px; }
+  .mbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; background: none; border-radius: 12px; font-size: 11px; color: var(--ink); }
+  .mbar button.on { background: rgba(255,255,255,.55); font-weight: 600; }
+  .mbar svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  html[data-night="1"] .mbar button { color: #eaf6f6; }
+  html[data-night="1"] .mbar button.on { background: rgba(255,255,255,.14); }
+  .bedhint { bottom: calc(var(--edge) + 56px + var(--gap)); }
+  .dhud { bottom: calc(var(--edge) + 56px + 24px); }
+  #envMenu { left: var(--edge) !important; right: var(--edge); bottom: calc(var(--edge) + 56px + 8px) !important; max-height: 70vh; overflow: auto; }
+  /* 3: ボタンを1行に収める */
+  .acts { flex-wrap: nowrap; gap: 8px; }
+  .tide { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  .long { display: none; }
+  .calm b { font-size: 12px; }
+  .addbtn { padding: 0 14px; }
+}
+.menvacct:empty { display: none; }
+.menvacct { margin: 0 0 12px; }
+@media (min-width: 821px) { .menvacct { display: none; } }
+/* 5・12: 押せるもの */
+.bedhint { cursor: pointer; }
+.greet .linkish { border: 0; background: none; padding: 0; font: inherit; color: var(--must); font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .2s; }
+.greet .linkish:hover { text-decoration-color: currentColor; }
+/* 10 */
+html[data-night="1"] #dBubbles .bub { border-color: rgba(255,255,255,.16); }
+/* 15: 優先タスクのカードを、パネルの高さいっぱいに */
+.row .panel:not(.focus) { display: flex; flex-direction: column; }
+.row .panel:not(.focus) .cards { flex: 1; align-items: stretch; }
+.row .panel:not(.focus) .card { display: flex; flex-direction: column; justify-content: center; }
+@media (max-width: 820px) { .row .panel:not(.focus) { display: none; } }
+#envMenu .go { flex-wrap: wrap; }

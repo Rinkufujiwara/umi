@@ -1,10 +1,10 @@
 // Umi ホーム：湖に浮かぶブイ＝タスク。終えたら沈める。ホイールはページではなくカメラを動かす
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=20';
-import { parseQuick } from './parse.js?v=20';
-import * as St from './store.js?v=20';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=20';
+import { createHome } from './home-scene.js?v=21';
+import { parseQuick } from './parse.js?v=21';
+import * as St from './store.js?v=21';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=21';
 gsap.registerPlugin(Observer);
 
 const $ = id => document.getElementById(id);
@@ -72,7 +72,7 @@ function render() {
   const hello = hr < 4 ? 'こんばんは' : hr < 11 ? 'おはようございます' : hr < 18 ? 'こんにちは' : 'こんばんは';
   const urg = L.filter(urgent).length, today = cnt('surface');
   $('hello').textContent = hello;
-  $('summary').innerHTML = `${d.getMonth() + 1}月${d.getDate()}日（${St.WD[d.getDay()]}）${urg ? `　<span class="late">急ぎ ${urg}件</span>` : ''}`;
+  $('summary').innerHTML = `${d.getMonth() + 1}月${d.getDate()}日（${St.WD[d.getDay()]}）${urg ? `　<button class="late linkish" data-go="map" title="空から見て、どれが急ぎか確かめる">急ぎ ${urg}件</button>` : ''}`;
   // 件数は「一覧（空から見る）」に出す
   $('mapSub').innerHTML = (calm ? `<span class="calmnote">凪：いまの3件だけ表示中</span>　` : '') + `浮かんでいる <b>${L.length}件</b>（今日 ${today}${urg ? `・<span class="late">急ぎ ${urg}</span>` : ''}・今週 ${cnt('shallows')}・いつか ${cnt('depths')}）` +
     `${late ? `・<span class="late">遅れ ${late}</span>` : ''}　この7日で <b>${sunk}件</b> 沈めた`;
@@ -85,7 +85,7 @@ function render() {
   const kind = busy < 0.55 ? 'calm' : busy < 0.85 ? 'ripple' : busy < 1.15 ? 'waves' : busy < 1.5 ? 'rough' : 'storm';
   Env.setBusy(kind, busy, `今日の潮位 ${Math.round(plan / B * 100)}% ＋ 7日先の詰まり ${Math.round(week * 100)}%×0.5 ＋ 遅れ ${late}件×0.25 ＋ 急ぎ ${urgNotLate}件×0.12`);
   $('tide').className = 'tide' + (over ? ' over' : '');
-  $('tide').innerHTML = `今日の潮位 <b>${estLabel(plan) || '0分'}</b> ／ ${estLabel(B)}　<span class="rest">${over ? `${estLabel(plan - B)}多い` : `あと${estLabel(B - plan) || '0分'}`}</span><div class="bar"><i style="width:${Math.min(100, plan / B * 100)}%"></i></div>`;
+  $('tide').innerHTML = `<span class="long">今日の</span>潮位 <b>${estLabel(plan) || '0分'}</b> ／ ${estLabel(B)}　<span class="rest">${over ? `${estLabel(plan - B)}多い` : `あと${estLabel(B - plan) || '0分'}`}</span><div class="bar"><i style="width:${Math.min(100, plan / B * 100)}%"></i></div>`;
 
   // 今日の優先タスク（凪モードでは3件だけ）
   const ranked = rank(L.filter(t => secOf(t) === 'surface'));
@@ -253,12 +253,12 @@ function openPop(id, x, y) {
   const later = `<div class="wt">遠くへ ${[[1, '＋1日'], [3, '＋3日'], [7, '＋1週']].map(([n, l]) => `<button class="btn" data-post="${n}">${l}</button>`).join('')}</div>`;
   $('pop').innerHTML = `<h3>${esc(t.title)}</h3>
     <div class="m"><span>${SEC_NAME[sec]}</span>${dl ? `<span class="${dl.late ? 'late' : ''}">${esc(dl.text)}</span>` : ''}${t.est ? `<span>約${estLabel(t.est)}</span>` : ''}
-    <span>${c.must ? '必須' : '自主'}</span><span>重さ：${St.WEIGHT[lvl]}</span>${a ? `<span>${esc(a.name)}</span>` : ''}${t.repeat ? `<span>↻ ${St.REPEAT[t.repeat]}</span>` : ''}${t.dives?.length ? `<span>潜った 計${estLabel(t.dives.reduce((s, d) => s + d.min, 0))}</span>` : ''}</div>
+    <span>${c.must ? '必須' : '自主'}</span><span>重さ：${St.WEIGHT[lvl]}</span>${a ? `<span>${esc(a.name)}</span>` : ''}${t.repeat ? `<span>↻ ${St.REPEAT[t.repeat]}</span>` : ''}${(t.diveMin || t.dives?.length) ? `<span>潜った 計${estLabel(t.diveMin || t.dives.reduce((s, d) => s + d.min, 0))}</span>` : ''}</div>
     ${t.notes ? `<div class="m">${esc(t.notes)}</div>` : ''}
     <div class="why" title="価値 ${c.I}・痛手 ${c.P}・手間 ${c.E}・待ち ${c.D}">${c.evaluated ? '潮見' : '目安'}：価値 ${c.I}・痛手 ${c.P}・待ち ${c.D}${c.why ? `　${esc(c.why)}` : ''}</div>
     <div class="wt">重さ ${[1, 2, 3].map(w => `<button class="btn${lvl === w ? ' pri' : ''}" data-weight="${w}">${St.WEIGHT[w]}</button>`).join('')}</div>
     ${later}
-    <div class="go"><button class="btn pri" data-sink="${t.id}">沈める</button><button class="btn" data-dive="${t.id}">潜る</button>${moves}<a class="btn" href="list.html" style="text-decoration:none">一覧で編集</a><button class="btn del" data-del="${t.id}" title="このタスクを消す（元に戻せます）">削除</button></div>`;
+    <div class="go"><button class="btn pri" data-sink="${t.id}" title="ブイを長押ししても沈められます">沈める</button><button class="btn" data-dive="${t.id}">潜る</button>${moves}<a class="btn" href="list.html" style="text-decoration:none">一覧で編集</a><button class="btn del" data-del="${t.id}" title="このタスクを消す（元に戻せます）">削除</button></div>`;
   const pop = $('pop'); pop.classList.add('open');
   const w = 290, h = pop.offsetHeight;
   pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, x - w / 2))}px`;
@@ -390,8 +390,11 @@ function renderEnv() {
   $('envMenu').innerHTML = `<p style="margin:0 0 6px;font-size:12px;color:var(--sub)">季節</p><div class="go" style="margin:0 0 12px">${SEASONS.map(([k, v]) => `<button class="btn${S.settings.season === k ? ' pri' : ''}" data-season="${k}">${v}</button>`).join('')}</div>
     <p style="margin:0 0 6px;font-size:12px;color:var(--sub)">空と水面（ふだんは、やることの詰まり具合で自動）</p><div class="go" style="margin:0 0 12px">${WEATHERS.map(([k, v]) => `<button class="btn${Env.weatherMode === k ? ' pri' : ''}" data-weather="${k}">${v}</button>`).join('')}</div>
     <p style="margin:0 0 6px;font-size:12px;color:var(--sub)">1日に使える時間（潮位と、作業にかかる日数の計算に使う）</p><div class="go" style="margin:0 0 12px">${[2, 3, 4, 5, 6, 8].map(h => `<button class="btn${S.settings.budget === h * 60 ? ' pri' : ''}" data-hours="${h}">${h}時間</button>`).join('')}</div>
+    <p style="margin:0 0 6px;font-size:12px;color:var(--sub)">凪モード（いまやる3件だけを浮かべる）</p><div class="go" style="margin:0 0 12px"><button class="calm small" data-calm aria-pressed="${!!S.settings.calm}"><span class="sw"><i></i></span><b>凪モード</b></button></div>
+    <div class="menvacct" id="account2"></div>
     <p style="margin:0 0 6px;font-size:12px;color:var(--sub)">音</p><div class="go" style="margin:0"><button class="btn${S.settings.sound ? ' pri' : ''}" data-sound="1">沈めるときの音 ${S.settings.sound ? 'オン' : 'オフ'}</button></div>
     <p style="margin:10px 0 0;font-size:11px;color:var(--faint)">${esc(Env.statusText())}${Env.auto.reason ? `<br>${esc(Env.auto.reason)}` : ''}</p>`;
+  const a2 = $('account2'); if (a2 && $('account')) a2.innerHTML = $('account').innerHTML;
 }
 Env.on(renderEnv);
 $('envNav').onclick = e => { e.stopPropagation(); $('envMenu').classList.toggle('open'); $('scrim').classList.toggle('open', $('envMenu').classList.contains('open')); };
@@ -458,7 +461,8 @@ function goTo(name) {
   // 移動中は名札を消す（チカチカするので）
   document.body.classList.add('moving');
   const down = name === 'bed';
-  document.querySelectorAll('.side .nav[data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === name));
+  document.querySelectorAll('.side .nav[data-go], .mbar [data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === name));
+  document.querySelectorAll('.mbar [data-dive-open]').forEach(b => b.classList.remove('on'));
   const up = name === 'map';
   document.body.classList.toggle('map', up);
   $('mapview').classList.toggle('on', up);
@@ -498,6 +502,7 @@ addEventListener('keydown', e => {
   if (e.key === 'ArrowUp' || e.key === 'PageUp') step(-1);
   if (e.key === 'Escape') closePop();
   if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || e.key === 'c' || e.key === '/') { e.preventDefault(); openAdd(); }
+  if (e.key === 'd' && !e.ctrlKey && !e.metaKey && !overlayOpen()) { e.preventDefault(); openDive(); }
 });
 
 // ほかのタブ（一覧画面）で変わったら読み直す
@@ -527,6 +532,7 @@ const shiomiHooks = {
 const SHIOMI_TEXT = { off: 'ログインすると潮見が重さを付けます', idle: '潮見：最新', busy: '潮見：考えています…', unset: '潮見：Vercel に API キーが未設定', denied: '潮見：このアカウントは許可されていません', error: '潮見：つながりません（あとで再試行）' };
 function renderAccount() {
   const el = $('account'); if (!el) return;
+  queueMicrotask(() => { const a2 = $('account2'); if (a2) a2.innerHTML = el.innerHTML; }); // スマホでは設定の中に出す
   if (!Cloud.ready) { el.innerHTML = ''; return; }
   el.innerHTML = Cloud.user
     ? `<div class="acct"><b title="${esc(Cloud.user.email || '')}">${esc(Cloud.user.displayName || Cloud.user.email || 'ログイン中')}</b><button class="linkbtn" id="signOut">ログアウト</button></div><small>${SHIOMI_TEXT[Shiomi.state] || ''}</small>`
@@ -602,7 +608,12 @@ $('dCancel').onclick = () => { $('dive').hidden = true; };
 $('dStart').onclick = () => startDive($('dTask').value, dvMode);
 async function startDive(id, min, resume) {
   if (!id) return;
-  if (station !== 'home') { goTo('home'); await new Promise(r => setTimeout(r, 1900)); }
+  if (station !== 'home') { // 一覧・湖底からは、フェードで直接ホームへ（2秒待たせない）
+    const f = $('fade'); f.classList.add('on'); await new Promise(r => setTimeout(r, 380));
+    station = 'home'; document.body.classList.remove('map'); $('mapview').classList.remove('on'); $('bedview').classList.remove('on');
+    [$('top'), $('bedhint'), $('ticks'), $('axis')].forEach(el => el?.classList.remove('away')); $('tags').style.opacity = '1';
+    home.jumpTo(home.diveStation(id, 0)); setTimeout(() => f.classList.remove('on'), 120);
+  }
   dv = resume || { id, min, start: Date.now(), bubbles: [] }; dvSave();
   // 別のタブにいても浮上・減圧の終わりに気づけるように（最初の一度だけ許可を聞く）
   if (!resume && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
@@ -624,7 +635,7 @@ function dvTick() {
   // 深さ：時間を決めたときはその割合、決めないときはだんだん深く（40分で6割ほど）
   const k = dv.min ? Math.min(1, el / total) : 1 - Math.exp(-el / (45 * 60e3));
   home.setDiveDepth(k);
-  $('dDepth').style.height = `${k * 100}%`; $('dDepthTxt').textContent = `${Math.round(k * 30)}m`;
+  $('dDepth').style.height = `${k * 100}%`; $('dDepthTxt').textContent = `深さ ${Math.round(k * 30)}m`;
   const shown = dv.min ? fmt(total - el) : fmt(el);
   $('dTime').textContent = shown; document.title = `▼ ${shown} · Umi`;
   if (dv.min && el >= total) surface();
@@ -640,7 +651,10 @@ function surface() {
   const el = dvElapsed(), min = Math.max(1, Math.round((dv.min ? Math.min(el, dv.min * 60e3) : el) / 60e3));
   dv.ended = Date.now(); dv.used = min; dvSave();
   const t = S.tasks.find(x => x.id === dv.id);
-  if (t && el > 60e3) { t.dives = [...(t.dives || []), { at: dv.start, min }]; save(); }
+  if (t && el > 60e3) { // 合計は diveMin にためて、記録は新しい50件だけ残す
+    t.diveMin = (t.diveMin || (t.dives || []).reduce((s, d) => s + d.min, 0)) + min;
+    t.dives = [...(t.dives || []), { at: dv.start, min }].slice(-50); save();
+  }
   plop();
   notify('浮上しました', `${min}分 潜りました。${Math.max(1, Math.round(min / 5))}分の減圧（休憩）をどうぞ`);
   document.querySelectorAll('.side .nav').forEach(b => b.classList.toggle('on', b.dataset.go === 'home')); moveInd();
@@ -660,6 +674,7 @@ function showRest(min, t) {
   const upd = () => {
     const left = restEnd - Date.now();
     $('dRestTime').textContent = left > 0 ? `減圧 ${fmt(left)}` : '減圧おわり';
+    document.title = left > 0 ? `減圧 ${fmt(left)} · Umi` : 'Umi';
     $('dBreathTxt').textContent = left > 0 ? '波に合わせて、ゆっくり吸って、吐いて' : 'また潜れます';
     if (left <= 0) { clearInterval(dvTimer); if (Date.now() - restEnd < 5000) { chime(); notify('減圧おわり', 'また潜れます'); } }
   };
@@ -718,3 +733,7 @@ try {
   } else if (saved) localStorage.removeItem(DIVE_KEY);
 } catch (_) {}
 window.UmiHome.dive = { openDive, startDive, surface, get dv() { return dv; } };
+
+// スマホの下のメニュー：設定（湖のようす）
+$('mEnv').onclick = e => { e.stopPropagation(); $('envMenu').classList.toggle('open'); $('scrim').classList.toggle('open', $('envMenu').classList.contains('open')); };
+$('bedhint').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goTo('bed'); } });
