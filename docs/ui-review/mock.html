@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>ボタンの見直し 前と後</title>
+<style>
+  body { margin: 0; font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; color: #16303a;
+    background: linear-gradient(180deg, #a9c4cc 0%, #7fa6ae 45%, #3e6f78 100%); min-height: 100vh; }
+  .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; padding: 32px 40px; }
+  h1 { grid-column: 1 / -1; margin: 0; font-size: 20px; color: #fff; text-shadow: 0 1px 8px rgba(0,30,40,.4); }
+  .col h2 { margin: 0 0 16px; font-size: 14px; color: #fff; letter-spacing: .06em; text-shadow: 0 1px 8px rgba(0,30,40,.4); }
+  .glass { background: rgba(240,247,248,.72); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.6); border-radius: 16px; padding: 16px; margin-bottom: 24px; box-shadow: 0 8px 28px rgba(20,50,60,.16); }
+  h3 { margin: 0 0 4px; font-size: 16px; }
+  .m { font-size: 12px; color: #4f6670; margin-bottom: 12px; }
+  .lbl { font-size: 12px; color: #4f6670; margin: 12px 0 8px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .note { font-size: 11px; color: #4f6670; margin-top: 12px; line-height: 1.6; }
+
+  /* ---- いま ---- */
+  .old .btn { border: 0; border-radius: 99px; padding: 7px 14px; font-size: 13px; background: rgba(22,48,58,.07); color: #16303a; }
+  .old .btn.pri { background: #3f6e74; color: #fff; }
+  .old .btn.del { margin-left: auto; color: #b2402d; background: rgba(224,83,63,.08); }
+
+  /* ---- 案 ---- */
+  .new { --pri: #2f6670; --ink: #16303a; --line: rgba(22,48,58,.12); }
+  .new .b { height: 36px; padding: 0 14px; border-radius: 10px; font-size: 13px; font-weight: 500; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
+  .new .b.pri { background: var(--pri); color: #fff; font-weight: 600; box-shadow: 0 1px 0 rgba(255,255,255,.25) inset, 0 2px 6px rgba(20,60,70,.25); }
+  .new .b.sec { background: rgba(255,255,255,.85); border-color: var(--line); color: var(--ink); }
+  .new .b.quiet { background: none; color: #2f5560; padding: 0 10px; }
+  .new .b.quiet.danger { color: #b2402d; margin-left: auto; }
+  .seg { display: inline-flex; position: relative; padding: 3px; border-radius: 10px; background: rgba(22,48,58,.08); }
+  .seg button { position: relative; z-index: 1; border: 0; background: none; height: 30px; padding: 0 14px; font-size: 13px; color: #4f6670; border-radius: 8px; }
+  .seg button.on { color: var(--ink); font-weight: 600; background: #fff; box-shadow: 0 1px 3px rgba(20,50,60,.18); }
+  .divider { height: 1px; background: var(--line); margin: 12px 0; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: rgba(224,83,63,.12); color: #b2402d; margin-right: 6px; }
+.pair { display: flex; gap: 20px; flex-wrap: wrap; }
+  .pair .lbl { margin-top: 0; }
+  .seg.plain button { color: var(--ink); }
+  .seg.plain button:hover { background: rgba(255,255,255,.7); }
+</style></head>
+<body><div class="wrap">
+<h1>ボタンの見直し：いま（左）と 案（右・直し）</h1>
+
+<div class="col old">
+  <h2>いま</h2>
+  <div class="glass">
+    <h3>統計学の課題を提出する</h3>
+    <div class="m">今日 ・ 今日まで 23:59 ・ 約1時間 ・ 必須 ・ 重さ：ふつう</div>
+    <div class="lbl">重さ</div>
+    <div class="row"><button class="btn">軽い</button><button class="btn pri">ふつう</button><button class="btn">重い</button></div>
+    <div class="lbl">遠くへ</div>
+    <div class="row"><button class="btn">＋1日</button><button class="btn">＋3日</button><button class="btn">＋1週</button></div>
+    <div class="row" style="margin-top:12px"><button class="btn pri">沈める</button><button class="btn">潜る</button><button class="btn">浅瀬へ</button><button class="btn">一覧で編集</button><button class="btn del">削除</button></div>
+    <div class="note">「ふつう」（選んでいる状態）と「沈める」（押すと実行）が同じ濃い色。7つのボタンがほぼ同じ重さで並ぶ。</div>
+  </div>
+  <div class="glass">
+    <div class="lbl" style="margin-top:0">時間（ダイブ）</div>
+    <div class="row"><button class="btn">25分</button><button class="btn pri">50分</button><button class="btn">決めない</button></div>
+    <div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn">やめる</button><button class="btn pri">潜る</button></div>
+    <div class="note">選ぶもの（50分）と実行（潜る）が同じ見た目。</div>
+  </div>
+</div>
+
+<div class="col new">
+  <h2>案（直し）</h2>
+  <div class="glass" style="max-width:460px">
+    <h3>統計学の課題を提出する</h3>
+    <div class="m"><span class="tag">必須</span>今日まで 23:59 ・ 約1時間</div>
+    <div class="pair">
+      <div><div class="lbl">重さ</div><div class="seg"><button>軽い</button><button class="on">ふつう</button><button>重い</button></div></div>
+      <div><div class="lbl">遠くへ</div><div class="seg plain"><button>＋1日</button><button>＋3日</button><button>＋1週</button></div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="row"><button class="b pri">沈める</button><button class="b sec">潜る</button><button class="b quiet">浅瀬へ</button><button class="b quiet">一覧で編集</button><button class="b quiet danger">削除</button></div>
+  </div>
+  <div class="glass" style="max-width:460px">
+    <div class="pair" style="align-items:flex-end">
+      <div><div class="lbl" style="margin-top:0">時間（ダイブ）</div><div class="seg"><button>25分</button><button class="on">50分</button><button>決めない</button></div></div>
+      <div class="row" style="margin-left:auto"><button class="b quiet">やめる</button><button class="b pri">潜る</button></div>
+    </div>
+  </div>
+</div>
+</div></body></html>
