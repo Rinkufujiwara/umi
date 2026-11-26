@@ -392,6 +392,7 @@ export function createHome(canvas) {
       b.userData.cap.material.color.set(KIND[t.kind || 'none']);
       b.userData.lamp.material.emissive.set(KIND[t.kind || 'none']);
       b.userData.base = lerp(3.3, 4.6, t.v) * (t.size || 1); b.scale.setScalar(b.userData.base); // 遠いほど少し大きく、手間が大きいほど大きく
+      b.userData.farBase = 4.6 * (t.size || 1); // 空から見るときは、遠くのものと同じ大きさにそろえる（手間の差だけ残す）
       const u = b.userData, was = !!u.hidden; u.hidden = !!t.hidden;
       if (u.hidden && !was) { if (tasksSeen) u.diveT = -0.3 - Math.random() * 0.5; else b.visible = false; } // 凪：いらないものは下へ沈む
       else if (!u.hidden && was) { delete u.diveT; b.visible = true; if (tasksSeen) u.riseT = 0; }
@@ -869,7 +870,7 @@ export function createHome(canvas) {
         continue;
       }
       if (u.target) { b.position.lerp(u.target, Math.min(1, dt * 1.5)); if (b.position.distanceTo(u.target) < 0.05) delete u.target; }
-      if (u.base) b.scale.setScalar(u.base * (1 + sstep(60, 220, cam.py) * 1.6)); // 空から見るときは大きく
+      if (u.base) { const mk = sstep(60, 220, cam.py); b.scale.setScalar(lerp(u.base, u.farBase || u.base, mk) * (1 + mk * 1.6)); } // カメラが上がるのに合わせて、だんだん大きく・そろえる（戻るときも同じ）
       if (u.riseT !== undefined) { u.riseT += dt; if (u.riseT > 1.4) delete u.riseT; }
       const rise = u.riseT !== undefined ? Math.pow(Math.min(1, u.riseT / 1.4), 0.6) : 1;
       const amp = 0.08 + wind * 0.22;
