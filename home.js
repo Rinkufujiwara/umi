@@ -1,9 +1,9 @@
 // Umi ホーム：湖に浮かぶブイ＝タスク。終えたら沈める。ホイールはページではなくカメラを動かす
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=9';
-import { parseQuick } from './parse.js?v=9';
-import * as St from './store.js?v=9';
+import { createHome } from './home-scene.js?v=10';
+import { parseQuick } from './parse.js?v=10';
+import * as St from './store.js?v=10';
 gsap.registerPlugin(Observer);
 
 const $ = id => document.getElementById(id);

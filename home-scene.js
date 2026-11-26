@@ -476,8 +476,7 @@ export function createHome(canvas) {
     const d = tmpV.length(); if (d < 0.01) return 0;
     const step = Math.min(d, speed * dt); p.x += tmpV.x / d * step; p.z += tmpV.z / d * step;
     p.z = Math.min(p.z, FRONT - 4); p.x = Math.max(p.x, shoreL(p.z) + 3);
-    const yaw = Math.atan2(tmpV.x, tmpV.z);
-    f.g.rotation.y += (((yaw - f.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 4);
+    if (d > 3) { const yaw = Math.atan2(tmpV.x, tmpV.z); f.g.rotation.y += (((yaw - f.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 4); }
     return d;
   }
   function updateAlerts(dt) {
@@ -493,17 +492,24 @@ export function createHome(canvas) {
       f.rise = Math.min(1, f.rise + dt * 0.7);
       p.y = lerp(-2.5, 0, f.rise) + Math.sin(f.t * 2.2) * 0.05;
       f.g.visible = b.visible;
-      // ブイのすぐそばにとどまり、トン、トン、と一定のリズムでつつき続ける（約1.4秒ごと）
-      const bp = b.position, s = b.scale.x / 3.4, c = f.t % 1.4;
-      f.rest.set(bp.x - 3.6 * s, 0, bp.z + 1.4 * s);
-      tmpV2.set(bp.x - 2.0 * s, 0, bp.z + 0.7 * s);
-      let moving = false;
-      if (f.rise < 0.95 || f.g.position.distanceTo(f.rest) > 6 * s) moving = steer(f, f.rest, 8, dt) > 0.3; // まず近くまで泳いでくる
-      else if (c < 0.35) steer(f, tmpV2, 7, dt);                                                     // 鼻先を当てる
-      else if (c < 0.45) { if (!f.bumped) { b.userData.nudge = 1; f.bumped = true; } }               // トン
-      else { f.bumped = false; steer(f, f.rest, 4, dt); }                                            // 少しだけ下がる
-      // 鼻先はいつもブイのほうへ
-      if (!moving) { const yaw = Math.atan2(bp.x - f.g.position.x, bp.z - f.g.position.z); f.g.rotation.y += (((yaw - f.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 6); }
+      // ブイのまわりを楕円で回り、一点だけすっと近づいて鼻先で触れ、また弧を描いて離れる。速さに緩急
+      const bp = b.position, s = b.scale.x / 3.4;
+      if (f.a === undefined) { f.a = Math.atan2(f.g.position.z - bp.z, f.g.position.x - bp.x); f.a0 = Math.random() * 6.28; f.ph = Math.random() * 6.28; }
+      const near = Math.pow(Math.max(0, Math.cos(f.a - f.a0)), 6);          // 触れる地点に近いほど 1
+      const speed = (0.75 + 0.35 * Math.sin(f.t * 0.9 + f.ph)) * (1 + near * 0.6); // 近づくときは少し速く
+      f.a += dt * speed;
+      const R = (5.5 - near * 3.4) * s * (1 + 0.12 * Math.sin(2 * f.a + f.ph));
+      tmpV2.set(bp.x + Math.cos(f.a) * R, 0, bp.z + Math.sin(f.a) * R * 0.85);
+      let moving = steer(f, tmpV2, f.rise < 0.95 ? 9 : 30, dt) > 0.05;
+      // 触れた瞬間にブイが揺れる（1周に1回）
+      const touch = ((f.a - f.a0) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+      if (touch < 0.25 && !f.bumped && f.rise > 0.9) { b.userData.nudge = 1; f.bumped = true; }
+      if (touch > 1) f.bumped = false;
+      // 進む向き＋泳ぐときの小さな左右の振り
+      const tx = -Math.sin(f.a), tz = Math.cos(f.a) * 0.85, yaw = Math.atan2(tx, tz) + Math.sin(f.t * 3.2 + f.ph) * 0.12;
+      f.g.rotation.y += (((yaw - f.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 5);
+      f.g.rotation.z = Math.sin(f.t * 1.6 + f.ph) * 0.06;
+      moving = true;
       f.wake += dt;
       if (moving && f.wake > 0.25 && f.rise > 0.6) {
         f.wake = 0;
