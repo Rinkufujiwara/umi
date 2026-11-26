@@ -1,10 +1,10 @@
 // Umi ホーム：湖に浮かぶブイ＝タスク。終えたら沈める。ホイールはページではなくカメラを動かす
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=19';
-import { parseQuick } from './parse.js?v=19';
-import * as St from './store.js?v=19';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=19';
+import { createHome } from './home-scene.js?v=20';
+import { parseQuick } from './parse.js?v=20';
+import * as St from './store.js?v=20';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=20';
 gsap.registerPlugin(Observer);
 
 const $ = id => document.getElementById(id);
@@ -74,7 +74,7 @@ function render() {
   $('hello').textContent = hello;
   $('summary').innerHTML = `${d.getMonth() + 1}月${d.getDate()}日（${St.WD[d.getDay()]}）${urg ? `　<span class="late">急ぎ ${urg}件</span>` : ''}`;
   // 件数は「一覧（空から見る）」に出す
-  $('mapSub').innerHTML = `浮かんでいる <b>${L.length}件</b>（今日 ${today}${urg ? `・<span class="late">急ぎ ${urg}</span>` : ''}・今週 ${cnt('shallows')}・いつか ${cnt('depths')}）` +
+  $('mapSub').innerHTML = (calm ? `<span class="calmnote">凪：いまの3件だけ表示中</span>　` : '') + `浮かんでいる <b>${L.length}件</b>（今日 ${today}${urg ? `・<span class="late">急ぎ ${urg}</span>` : ''}・今週 ${cnt('shallows')}・いつか ${cnt('depths')}）` +
     `${late ? `・<span class="late">遅れ ${late}</span>` : ''}　この7日で <b>${sunk}件</b> 沈めた`;
   // 忙しさ → 湖の天気と波
   // 今日の潮位（見積もり ÷ 1日に使える時間）を土台に、7日先までの詰まり・遅れ・急ぎを足す
@@ -89,7 +89,7 @@ function render() {
 
   // 今日の優先タスク（凪モードでは3件だけ）
   const ranked = rank(L.filter(t => secOf(t) === 'surface'));
-  const f = ranked[0], top = ranked.slice(1, 4);
+  const f = ranked[0], top = ranked.slice(1, calm ? 3 : 4); // 凪では、浮かんでいる3つだけ
   $('cards').innerHTML = top.length ? top.map(cardHTML).join('') : '<div class="empty">ほかにはありません</div>';
   focusId = f ? f.id : null;
   $('focus').innerHTML = f ? `${cardHTML(f)}<div class="go"><button class="btn pri" data-sink="${f.id}">沈める</button><button class="btn" data-dive="${f.id}">潜る</button><button class="btn" data-later="${f.id}">明日へ</button></div>`
@@ -207,6 +207,12 @@ async function complete(id) {
   await sinking;
   render();
 }
+// 削除：ブイを消す（トーストで元に戻せる）
+function removeTask(id) {
+  const i = S.tasks.findIndex(x => x.id === id); if (i < 0) return;
+  const [t] = S.tasks.splice(i, 1); closePop(); save(); render();
+  toast(`「${t.title}」を削除しました`, () => { S.tasks.splice(i, 0, t); });
+}
 // 遠くへ：期限をのばす（遅れているものは今日から数える）
 function postpone(id, days) {
   const t = S.tasks.find(x => x.id === id); if (!t) return;
@@ -247,12 +253,12 @@ function openPop(id, x, y) {
   const later = `<div class="wt">遠くへ ${[[1, '＋1日'], [3, '＋3日'], [7, '＋1週']].map(([n, l]) => `<button class="btn" data-post="${n}">${l}</button>`).join('')}</div>`;
   $('pop').innerHTML = `<h3>${esc(t.title)}</h3>
     <div class="m"><span>${SEC_NAME[sec]}</span>${dl ? `<span class="${dl.late ? 'late' : ''}">${esc(dl.text)}</span>` : ''}${t.est ? `<span>約${estLabel(t.est)}</span>` : ''}
-    <span>${c.must ? '必須' : '自主'}</span><span>重さ：${St.WEIGHT[lvl]}</span>${a ? `<span>${esc(a.name)}</span>` : ''}${t.repeat ? `<span>↻ ${St.REPEAT[t.repeat]}</span>` : ''}</div>
+    <span>${c.must ? '必須' : '自主'}</span><span>重さ：${St.WEIGHT[lvl]}</span>${a ? `<span>${esc(a.name)}</span>` : ''}${t.repeat ? `<span>↻ ${St.REPEAT[t.repeat]}</span>` : ''}${t.dives?.length ? `<span>潜った 計${estLabel(t.dives.reduce((s, d) => s + d.min, 0))}</span>` : ''}</div>
     ${t.notes ? `<div class="m">${esc(t.notes)}</div>` : ''}
     <div class="why" title="価値 ${c.I}・痛手 ${c.P}・手間 ${c.E}・待ち ${c.D}">${c.evaluated ? '潮見' : '目安'}：価値 ${c.I}・痛手 ${c.P}・待ち ${c.D}${c.why ? `　${esc(c.why)}` : ''}</div>
     <div class="wt">重さ ${[1, 2, 3].map(w => `<button class="btn${lvl === w ? ' pri' : ''}" data-weight="${w}">${St.WEIGHT[w]}</button>`).join('')}</div>
     ${later}
-    <div class="go"><button class="btn pri" data-sink="${t.id}">沈める</button><button class="btn" data-dive="${t.id}">潜る</button>${moves}<a class="btn" href="list.html" style="text-decoration:none">一覧で編集</a></div>`;
+    <div class="go"><button class="btn pri" data-sink="${t.id}">沈める</button><button class="btn" data-dive="${t.id}">潜る</button>${moves}<a class="btn" href="list.html" style="text-decoration:none">一覧で編集</a><button class="btn del" data-del="${t.id}" title="このタスクを消す（元に戻せます）">削除</button></div>`;
   const pop = $('pop'); pop.classList.add('open');
   const w = 290, h = pop.offsetHeight;
   pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, x - w / 2))}px`;
@@ -265,6 +271,7 @@ $('scrim').onclick = () => { closePop(); closeAdd(); };
 document.addEventListener('click', e => {
   if (e.target.closest('#bedToggle')) { $('bedList').classList.toggle('open'); renderBed(); return; }
   const sk = e.target.closest('[data-sink]'); if (sk) { complete(sk.dataset.sink); return; }
+  const dl = e.target.closest('[data-del]'); if (dl) { removeTask(dl.dataset.del); return; }
   const lt = e.target.closest('[data-later]'); if (lt) { postpone(lt.dataset.later, 1); return; }
   const po = e.target.closest('[data-post]'); if (po && popId) { postpone(popId, +po.dataset.post); return; }
   const li = e.target.closest('[data-lighter]'); if (li && popId) { lighter(popId); return; }
@@ -408,6 +415,17 @@ function moveInd() {
   ind.style.transform = `translateY(${on.offsetTop}px)`;
 }
 addEventListener('resize', moveInd);
+// 窓の大きさが変わったら、いまの視点を測り直す（凪の3つ・空からの一覧が外れないように）
+let resizeT = 0;
+addEventListener('resize', () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    if (moving) return;
+    if (station === 'home' && S.settings.calm) home.jumpTo(home.stationFor('home', homeInsets()));
+    if (station === 'map') { const side = document.querySelector('.side').getBoundingClientRect(), mv = $('mapview');
+      home.jumpTo(home.stationFor('map', { left: (innerWidth > 820 ? side.right : 0) + 18, top: mv.offsetTop + mv.offsetHeight + 18, right: 24, bottom: 24 })); }
+  }, 250);
+});
 // 水面に上がったとき：パネルに水滴がつき、2秒ほどで落ちる
 function wetPanels() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -559,7 +577,7 @@ let dv = null, dvTimer = 0, dvMode = 25, restEnd = 0;
 const fmt = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const dvSave = () => { try { dv ? localStorage.setItem(DIVE_KEY, JSON.stringify(dv)) : localStorage.removeItem(DIVE_KEY); } catch (_) {} };
 function dvShow(part) { // setup / hud / rest
-  $('dive').hidden = false; document.body.classList.toggle('diving', part === 'hud');
+  $('dive').hidden = false; document.body.classList.toggle('diving', part === 'hud'); $('dive').classList.toggle('dim', part !== 'hud');
   $('dSetup').classList.toggle('on', part === 'setup'); $('dHud').classList.toggle('on', part === 'hud');
   $('dGauge').classList.toggle('on', part === 'hud'); $('dRest').classList.toggle('on', part === 'rest');
 }
@@ -569,7 +587,8 @@ function openDive(id) {
   const L = rank(live());
   const pick = id || focusId || L[0]?.id;
   if (!pick) { toast('潜る先のタスクがありません'); return; }
-  $('dTask').innerHTML = L.map(t => `<option value="${t.id}"${t.id === pick ? ' selected' : ''}>${esc(t.title)}</option>`).join('');
+  const GROUP = [['surface', '今日'], ['shallows', '今週'], ['depths', 'いつか']];
+  $('dTask').innerHTML = GROUP.map(([s, name]) => { const g = L.filter(t => secOf(t) === s); return g.length ? `<optgroup label="${name}">${g.map(t => `<option value="${t.id}"${t.id === pick ? ' selected' : ''}>${esc(t.title)}</option>`).join('')}</optgroup>` : ''; }).join('');
   const t = S.tasks.find(x => x.id === pick);
   setMode(t?.est && t.est >= 50 ? 50 : 25); dvShow('setup'); setTimeout(() => $('dStart').focus(), 50);
 }
@@ -585,6 +604,9 @@ async function startDive(id, min, resume) {
   if (!id) return;
   if (station !== 'home') { goTo('home'); await new Promise(r => setTimeout(r, 1900)); }
   dv = resume || { id, min, start: Date.now(), bubbles: [] }; dvSave();
+  // 別のタブにいても浮上・減圧の終わりに気づけるように（最初の一度だけ許可を聞く）
+  if (!resume && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+  document.querySelectorAll('.side .nav').forEach(b => b.classList.toggle('on', b.hasAttribute('data-dive-open'))); moveInd();
   station = 'dive'; moving = true; document.body.classList.add('moving');
   const t = S.tasks.find(x => x.id === dv.id);
   $('dTaskName').textContent = t ? t.title : '';
@@ -620,6 +642,8 @@ function surface() {
   const t = S.tasks.find(x => x.id === dv.id);
   if (t && el > 60e3) { t.dives = [...(t.dives || []), { at: dv.start, min }]; save(); }
   plop();
+  notify('浮上しました', `${min}分 潜りました。${Math.max(1, Math.round(min / 5))}分の減圧（休憩）をどうぞ`);
+  document.querySelectorAll('.side .nav').forEach(b => b.classList.toggle('on', b.dataset.go === 'home')); moveInd();
   document.title = 'Umi';
   home.setDive(null); moving = true; document.body.classList.add('moving');
   station = 'home';
@@ -637,7 +661,7 @@ function showRest(min, t) {
     const left = restEnd - Date.now();
     $('dRestTime').textContent = left > 0 ? `減圧 ${fmt(left)}` : '減圧おわり';
     $('dBreathTxt').textContent = left > 0 ? '波に合わせて、ゆっくり吸って、吐いて' : 'また潜れます';
-    if (left <= 0) clearInterval(dvTimer);
+    if (left <= 0) { clearInterval(dvTimer); if (Date.now() - restEnd < 5000) { chime(); notify('減圧おわり', 'また潜れます'); } }
   };
   clearInterval(dvTimer); upd(); dvTimer = setInterval(upd, 500);
 }
@@ -666,7 +690,25 @@ document.addEventListener('click', e => {
   const d = e.target.closest('[data-dive]'); if (d) { openDive(d.dataset.dive); return; }
   if (e.target.closest('[data-dive-open]')) openDive();
 });
-addEventListener('keydown', e => { if (e.key === 'Escape' && !$('dive').hidden && $('dSetup').classList.contains('on')) $('dive').hidden = true; });
+addEventListener('keydown', e => {
+  if ($('dive').hidden) return;
+  if (e.key === 'Escape' && $('dSetup').classList.contains('on')) $('dive').hidden = true;
+  else if (e.key === 'Escape' && $('dRest').classList.contains('on')) endDive();
+  else if (e.key === 'Enter' && $('dSetup').classList.contains('on') && document.activeElement?.tagName !== 'SELECT' && !document.activeElement?.closest?.('button')) startDive($('dTask').value, dvMode);
+});
+// 後ろの暗いところを押したら、設定の画面は閉じる
+$('dive').addEventListener('click', e => { if (e.target === $('dive') && $('dSetup').classList.contains('on')) $('dive').hidden = true; });
+function notify(title, body) { try { if (document.hidden && 'Notification' in window && Notification.permission === 'granted') new Notification(title, { body, silent: true }); } catch (_) {} }
+// 減圧おわりの合図：やわらかい2音
+function chime() {
+  if (!S.settings.sound) return;
+  try {
+    actx = actx || new AudioContext();
+    [[523, 0], [784, 0.18]].forEach(([f, d]) => { const t = actx.currentTime + d, o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 1); });
+  } catch (_) {}
+}
 // 再読み込みしても続きから（時刻で数えているので、離れていた間も進んでいる。離れても責めない）
 try {
   const saved = JSON.parse(localStorage.getItem(DIVE_KEY) || 'null');

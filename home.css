@@ -435,3 +435,24 @@ body.diving .side { opacity: .35; transition: opacity .8s; }
 #dBubbles .bub span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 html[data-night="1"] .dmodes button { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); }
 html[data-night="1"] .dlab select { background: rgba(30,55,66,.95); color: #eaf6f6; border-color: rgba(255,255,255,.18); }
+
+/* ---- 改善 第1セット ---- */
+/* 1: 幅1100px以下でも「いまの一つ」を出す（先頭に） */
+@media (max-width: 1100px) and (min-width: 821px) {
+  .row { grid-template-columns: minmax(0, 1fr) 280px; }
+  .row .focus { display: block; }
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .cards > :nth-child(n+3) { display: none; }
+}
+@media (max-width: 820px) { .row .focus { display: block; order: -1; } .row .panel:not(.focus) { display: none; } }
+/* 4: ダイブの設定・減圧の後ろを暗く */
+.dive { transition: background .3s; }
+.dive.dim { background: rgba(8,28,36,.38); pointer-events: auto; }
+/* 5: 削除は控えめに、右端へ */
+.pop .go .del { margin-left: auto; color: #b2402d; background: rgba(224,83,63,.08); }
+html[data-night="1"] .pop .go .del { color: #ffb3a6; background: rgba(224,83,63,.18); }
+/* 14 */
+.mapview .calmnote { color: #2f6f78; font-weight: 600; }
+html[data-night="1"] .mapview .calmnote { color: #9fd6dc; }
+/* 15: 長押しで文字選択やメニューが出ないように */
+#scene, #tags .tag { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }

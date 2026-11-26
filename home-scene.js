@@ -536,7 +536,7 @@ export function createHome(canvas) {
     const r = canvas.getBoundingClientRect();
     ndc.set((clientX - r.left) / r.width * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const list = [...buoys.values()].filter(b => b.visible && !b.userData.sinking);
+    const list = [...buoys.values()].filter(b => b.visible && !b.userData.sinking && !b.userData.hidden);
     const hits = ray.intersectObjects(list, true);
     if (hits.length) { let o = hits[0].object; while (o && !o.userData.id) o = o.parent; if (o) return o.userData.id; }
     // 当たらなくても、画面上でいちばん近いブイ（30px 以内）を選ぶ。遠くの小さいブイも押しやすく
@@ -593,7 +593,7 @@ export function createHome(canvas) {
   let wxTarget = { ...wx };
   // 凪：一度大きくうねってから、スーッと静まる
   let calmOn = false, swell = 0, waterT = 0;
-  function setCalm(on, quiet) { if (on !== calmOn && !quiet) swell = 1; calmOn = on; }
+  function setCalm(on, quiet) { if (on !== calmOn && !quiet && !matchMedia('(prefers-reduced-motion: reduce)').matches) swell = 1; calmOn = on; }
   function setWeather(t) { wxTarget = { cloud: t.cloud, rain: t.rain, snow: t.snow, fog: t.fog, wind: t.wind }; }
 
   // 雨・雪
@@ -681,6 +681,7 @@ export function createHome(canvas) {
   let fly = null;   // { p0, p1, q0, q1, u0, u1, t, dur, res }
   const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   function flyTo(st, dur) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) dur = Math.min(dur, 0.3); // 動きを減らす設定では、すぐ着く
     return new Promise(res => { fly = { p0: camPos.clone(), p1: new THREE.Vector3(...st.pos), q0: camQuat.clone(), q1: qFrom(st.pos, st.look, st.up), u0: cam.uf, u1: st.uf, start: performance.now(), dur, res }; });
   }
   function jumpTo(st) { fly = null; camPos.set(...st.pos); camQuat.copy(qFrom(st.pos, st.look, st.up)); cam.uf = st.uf; }

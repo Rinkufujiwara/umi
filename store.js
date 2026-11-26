@@ -1,5 +1,5 @@
 // タスクの保存と計算（一覧画面 list.html と同じ保存場所 umi.v1 を使う）
-import { ymd } from './parse.js?v=19';
+import { ymd } from './parse.js?v=20';
 
 export const KEY = 'umi.v1';
 export const COLORS = ['#2f6f8f', '#6a5acd', '#c0812c', '#3c8d5a', '#b4566e', '#4f7cc4', '#8a7a3c', '#3f8f8b'];
