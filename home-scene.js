@@ -383,7 +383,8 @@ export function createHome(canvas) {
       const spot = placeUV(t.id, t.u, t.v);
       if (!b) {
         b = makeBuoy(t); buoys.set(t.id, b); buoyRoot.add(b); b.position.copy(spot);
-        if (tasksSeen) { b.userData.riseT = 0; splash(spot); } // あとから追加したものは、水の中から浮かび上がる
+        if (tasksSeen && !t.hidden) { b.userData.riseT = 0; splash(spot); } // あとから追加したものは、水の中から浮かび上がる
+        b.userData.hidden = !!t.hidden; b.visible = !t.hidden;
       }
       else if (b.userData.key !== key) b.userData.target = spot;
       b.userData.key = key; b.userData.home = spot;
@@ -391,7 +392,9 @@ export function createHome(canvas) {
       b.userData.cap.material.color.set(KIND[t.kind || 'none']);
       b.userData.lamp.material.emissive.set(KIND[t.kind || 'none']);
       b.userData.base = lerp(3.3, 4.6, t.v) * (t.size || 1); b.scale.setScalar(b.userData.base); // 遠いほど少し大きく、手間が大きいほど大きく
-      b.visible = !t.hidden;
+      const u = b.userData, was = !!u.hidden; u.hidden = !!t.hidden;
+      if (u.hidden && !was) { if (tasksSeen) u.diveT = -0.3 - Math.random() * 0.5; else b.visible = false; } // 凪：いらないものは下へ沈む
+      else if (!u.hidden && was) { delete u.diveT; b.visible = true; if (tasksSeen) u.riseT = 0; }
     }
     resolveOverlap();
   }
@@ -554,6 +557,7 @@ export function createHome(canvas) {
 
   // ---------------------------------------------------------------- season / weather
   const tmpC = new THREE.Color();
+  const tmpV3 = new THREE.Vector3();
   let season = null;
   function setSeason(s) {
     if (s === season || !PAL[s]) return; season = s;
@@ -587,6 +591,9 @@ export function createHome(canvas) {
   const baseFog = new THREE.Color(), skyTop = new THREE.Color(), skyBot = new THREE.Color(), waterCol = new THREE.Color();
   const wx = { cloud: 0, rain: 0, snow: 0, fog: 0, wind: 0.2 };
   let wxTarget = { ...wx };
+  // 凪：一度大きくうねってから、スーッと静まる
+  let calmOn = false, swell = 0, waterT = 0;
+  function setCalm(on, quiet) { if (on !== calmOn && !quiet) swell = 1; calmOn = on; }
   function setWeather(t) { wxTarget = { cloud: t.cloud, rain: t.rain, snow: t.snow, fog: t.fog, wind: t.wind }; }
 
   // 雨・雪
@@ -683,10 +690,10 @@ export function createHome(canvas) {
     const st = stationRaw(name); st.up = UP[name] || UP.home; return st;
   }
   function stationRaw(name) {
-    if (name === 'home') return { ...STATIONS.home, uf: 70 };
+    if (name === 'home') return (calmOn && calmFrame()) || { ...STATIONS.home, uf: 70 };
     if (name === 'map') { // 浮いているブイがちょうど収まる高さまで上がる（左の列と上の札のぶん余白をとる）
       let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-      for (const b of buoys.values()) { if (b.userData.sinking || !b.visible) continue; const p = b.userData.home || b.position; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
+      for (const b of buoys.values()) { if (b.userData.sinking || b.userData.hidden || !b.visible) continue; const p = b.userData.home || b.position; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
       if (!isFinite(x0)) { x0 = -40; x1 = 80; z0 = -200; z1 = 10; }
       // 空からは回して見る：画面の上＝陸（軽い）、下＝沖（重い）、左＝急ぐ（手前 +z）、右＝余裕（奥）
       const w = innerWidth, hgt = innerHeight, leftPx = insets.left, topPx = insets.top;
@@ -701,6 +708,56 @@ export function createHome(canvas) {
     // 引いて、山の全体とまわりの湖底が見えるように
     return { pos: [PILE.x + 6, Math.min(-3, PILE.y + H + 24), Math.min(FRONT - 2, PILE.z + 44 + H * 0.6)], look: [PILE.x, PILE.y + H * 0.35, PILE.z - 4], uf: 150 };
   }
+  // 凪：残ったブイがちょうど収まる角度と近さを、その時の配置から計算する
+  const tmpCam = new THREE.PerspectiveCamera();
+  function calmFrame() {
+    const pts = [];
+    for (const b of buoys.values()) {
+      const u = b.userData; if (u.sinking || u.hidden) continue;
+      const p = u.home || b.position, s = u.base || 4;
+      pts.push(new THREE.Vector3(p.x - s, 0, p.z), new THREE.Vector3(p.x + s, 0, p.z), new THREE.Vector3(p.x, s * 2.4 + 3, p.z)); // 名札のぶん上も入れる
+    }
+    if (!pts.length) return null;
+    const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length); c.y = 0;
+    const dir = new THREE.Vector3(0, -0.26, -1).normalize();
+    tmpCam.fov = camera.fov; tmpCam.aspect = camera.aspect; tmpCam.near = 0.5; tmpCam.far = 3000; tmpCam.updateProjectionMatrix();
+    tmpCam.quaternion.copy(qFrom([0, 0, 0], dir.toArray(), [0, 1, 0]));
+    const R = new THREE.Vector3(1, 0, 0).applyQuaternion(tmpCam.quaternion), U = new THREE.Vector3(0, 1, 0).applyQuaternion(tmpCam.quaternion);
+    const W = innerWidth, H = innerHeight;
+    const ins = { left: insets.left, right: insets.right, top: insets.top, bottom: Math.max(insets.bottom, H * 0.12) };
+    const sx0 = ins.left / W * 2 - 1, sx1 = (W - ins.right) / W * 2 - 1, sy1 = 1 - ins.top / H * 2, sy0 = 1 - (H - ins.bottom) / H * 2;
+    const tanV = Math.tan(THREE.MathUtils.degToRad(tmpCam.fov / 2));
+    let D = 120; const pos = c.clone().addScaledVector(dir, -D);
+    for (let it = 0; it < 8; it++) {
+      tmpCam.position.copy(pos); tmpCam.updateMatrixWorld();
+      let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+      for (const p of pts) { v3.copy(p).project(tmpCam); x0 = Math.min(x0, v3.x); x1 = Math.max(x1, v3.x); y0 = Math.min(y0, v3.y); y1 = Math.max(y1, v3.y); }
+      // 真ん中を安全な枠の真ん中へ寄せる
+      pos.addScaledVector(R, ((x0 + x1) / 2 - (sx0 + sx1) / 2) * D * tanV * tmpCam.aspect);
+      pos.addScaledVector(U, ((y0 + y1) / 2 - (sy0 + sy1) / 2) * D * tanV);
+      // 枠の7割を埋める近さへ
+      const f = Math.max((x1 - x0) / (sx1 - sx0), (y1 - y0) / (sy1 - sy0), 0.05) / 0.7;
+      const nd = Math.min(260, Math.max(48, D * f));
+      pos.addScaledVector(dir, D - nd); D = nd;
+    }
+    // 断面より手前・水面より上にとどまる
+    if (pos.z < FRONT + 24) pos.z = FRONT + 24;
+    if (pos.y < 9) pos.y = 9;
+    return { pos: pos.toArray(), look: pos.clone().addScaledVector(dir, 200).toArray(), uf: 70 };
+  }
+  // ダイブ：選んだブイの真下へ、湖の中を下りていく。k＝深さ（0〜1）
+  let dive = null; const divePos = new THREE.Vector3(), diveLook = new THREE.Vector3(); let diveBubbleT = 0;
+  function diveStation(id, k) {
+    const b = buoys.get(id), p = b ? (b.userData.home || b.position) : new THREE.Vector3(0, 0, -20);
+    const floor = height(p.x, p.z);
+    divePos.set(p.x + 5, lerp(-3, Math.min(-6, floor + 8), k), Math.min(FRONT - 5, p.z + 16)); // 断面より奥（水の中）にいる
+    diveLook.set(p.x, lerp(-9, Math.min(-8, floor + 1), k), p.z - 24);
+    return { pos: divePos.toArray(), look: diveLook.toArray(), up: [0, 1, 0], uf: 90 };
+  }
+  function setDive(id, k = 0) { dive = id ? { id, k } : null; }
+  function setDiveDepth(k) { if (dive) dive.k = Math.max(0, Math.min(1, k)); }
+  // 泡メモ：カメラの前から泡が上っていく
+  function puff() { const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); for (let i = 0; i < 3; i++) bubbles(camera.position.clone().addScaledVector(f, 7 + i).add(new THREE.Vector3((Math.random() - 0.5) * 3, -1.5, 0))); }
   const pointer = { x: 0, y: 0, sx: 0, sy: 0 };
   addEventListener('pointermove', e => { pointer.x = e.clientX / innerWidth * 2 - 1; pointer.y = e.clientY / innerHeight * 2 - 1; });
 
@@ -723,7 +780,13 @@ export function createHome(canvas) {
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     if (!reduce.matches) clock += dt;
-    for (const k in wx) wx[k] += (wxTarget[k] - wx[k]) * Math.min(1, dt * 1.2);
+    swell = Math.max(0, swell - dt / 2.6);
+    const sw = swell > 0 ? Math.sin(Math.PI * Math.min(1, (1 - swell) / 0.42)) : 0; // 最初の約1秒で大きく、そのあと消える
+    for (const k in wx) {
+      const tgt = calmOn ? (k === 'wind' ? 0.02 : k === 'rain' || k === 'snow' ? wxTarget[k] * 0.3 : wxTarget[k]) : wxTarget[k];
+      wx[k] += (tgt - wx[k]) * Math.min(1, dt * (calmOn && swell < 0.6 ? 0.8 : 1.2));
+    }
+    const wind = wx.wind + sw * 1.5;
 
     // カメラ
     pointer.sx += (pointer.x - pointer.sx) * Math.min(1, dt * 1.5); pointer.sy += (pointer.y - pointer.sy) * Math.min(1, dt * 1.5);
@@ -731,6 +794,11 @@ export function createHome(canvas) {
       const k = Math.min(1, (now - fly.start) / 1000 / fly.dur), e = easeIO(k); // 実時間で進める（コマ落ちしても長さは同じ）
       camPos.lerpVectors(fly.p0, fly.p1, e); camQuat.slerpQuaternions(fly.q0, fly.q1, e); cam.uf = lerp(fly.u0, fly.u1, e);
       if (k >= 1) { const r = fly.res; fly = null; r(); }
+    }
+    if (dive && !fly) { // 潜っている間は、深さに合わせてゆっくり下りる
+      const st = diveStation(dive.id, dive.k), a = Math.min(1, dt * 0.5);
+      camPos.lerp(tmpV3.set(...st.pos), a); camQuat.slerp(qFrom(st.pos, st.look, st.up), a); cam.uf = lerp(cam.uf, st.uf, a);
+      diveBubbleT -= dt; if (diveBubbleT < 0) { diveBubbleT = 2 + Math.random() * 3; const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camQuat); bubbles(camPos.clone().addScaledVector(f, 14).add(new THREE.Vector3((Math.random() - 0.5) * 10, -3, 0))); }
     }
     cam.px = camPos.x; cam.py = camPos.y; cam.pz = camPos.z;
     const mapK = sstep(60, 220, cam.py), sway = 1 - mapK; // 空から見るときはカーソルで揺らさない
@@ -754,6 +822,7 @@ export function createHome(canvas) {
     const fogAbove = phaseCol('fog', baseFog.getHex()).lerp(tmpC.set(0xb7bec2).multiplyScalar(1 - night * 0.75), grey);
     stars.material.opacity = night * (1 - grey) * (1 - inside);
     fog.color.copy(fogAbove).lerp(tmpC.set(0x123842), inside);
+    if (dive) fog.color.multiplyScalar(1 - 0.5 * dive.k * inside); // 深いほど光が落ちる
     fog.near = lerp(lerp(120, 20, wx.fog), 2, inside); fog.far = lerp(lerp(1250, 240, wx.fog + wx.rain * 0.3), cam.uf, inside);
     scene.background = inside > 0.5 ? fog.color : null;
     sky.visible = inside < 0.95;
@@ -770,8 +839,9 @@ export function createHome(canvas) {
     water.material.uniforms.sunDirection.value.copy(sunDirTmp.copy(sun.position).normalize().lerp(moonDir, night).normalize());
     for (const b of buoys.values()) b.userData.lamp.material.emissiveIntensity = (hovered === b.userData.id ? 3.2 : 1.4) * (1 + night * 1.6);
     water.material.uniforms.waterColor.value.copy(waterCol).lerp(tmpC.set(0x5d7478), grey * 0.6);
-    water.material.uniforms.time.value = clock * (0.25 + wx.wind * 0.6);
-    water.material.uniforms.distortionScale.value = 0.45 + wx.wind * 1.2 + wx.rain * 1.2;
+    waterT += dt * (0.25 + wind * 0.6); // 速さが変わっても波がとばないように、積み上げる
+    water.material.uniforms.time.value = waterT;
+    water.material.uniforms.distortionScale.value = 0.45 + wind * 1.4 + wx.rain * 1.2;
     cutU.uTime.value = clock;
     cutU.uTop.value.set(0x6fa6a8).multiplyScalar(lerp(0.5, 1, day) * (1 - grey * 0.25));
     cutU.uDeep.value.set(0x0f2d38).multiplyScalar(lerp(0.6, 1, day));
@@ -801,10 +871,17 @@ export function createHome(canvas) {
       if (u.base) b.scale.setScalar(u.base * (1 + sstep(60, 220, cam.py) * 1.6)); // 空から見るときは大きく
       if (u.riseT !== undefined) { u.riseT += dt; if (u.riseT > 1.4) delete u.riseT; }
       const rise = u.riseT !== undefined ? Math.pow(Math.min(1, u.riseT / 1.4), 0.6) : 1;
-      const amp = 0.08 + wx.wind * 0.12;
-      b.position.y = Math.sin(clock * 0.9 + u.ph) * amp - (1 - rise) * 4;
+      const amp = 0.08 + wind * 0.22;
+      let dive = 0;
+      if (u.diveT !== undefined) {
+        u.diveT += dt;
+        if (u.diveT > 0 && !u.dived) { u.dived = true; splash(b.position); }
+        const k = Math.min(1, Math.max(0, u.diveT) / 1.5); dive = Math.pow(k, 1.7) * 7;
+        if (k >= 1) { b.visible = false; delete u.diveT; u.dived = false; }
+      }
+      b.position.y = Math.sin(clock * (0.9 + sw * 0.8) + u.ph) * amp - (1 - rise) * 4 - dive;
       if (u.nudge) { u.nudge = Math.max(0, u.nudge - dt * 1.6); }
-      b.rotation.z = Math.sin(clock * 0.7 + u.ph) * (0.04 + wx.wind * 0.06) + (u.nudge ? Math.sin(clock * 22) * 0.3 * u.nudge : 0);
+      b.rotation.z = Math.sin(clock * 0.7 + u.ph) * (0.04 + wind * 0.08) + (u.nudge ? Math.sin(clock * 22) * 0.3 * u.nudge : 0);
       b.rotation.x = Math.cos(clock * 0.6 + u.ph) * 0.03;
     }
     updateAlerts(dt);
@@ -820,7 +897,7 @@ export function createHome(canvas) {
     // ラベルの位置（画面の座標）を外に渡す
     const pts = [];
     for (const [id, b] of buoys) {
-      if (b.userData.sinking || !b.visible) continue;
+      if (b.userData.sinking || !b.visible || b.userData.hidden) continue;
       v3.copy(b.position); v3.y += 1.5 * b.scale.y; v3.project(camera);
       if (v3.z > 1) continue;
       pts.push({ id, x: (v3.x + 1) / 2 * canvas.clientWidth, y: (1 - v3.y) / 2 * canvas.clientHeight, sec: b.userData.sec, dist: camera.position.distanceTo(b.position) });
@@ -831,7 +908,7 @@ export function createHome(canvas) {
   requestAnimationFrame(frame);
 
   return {
-    setTasks, sink, setSunk, flyTo, jumpTo, setSeason, setWeather, setAlerts, setTime, pick, setHover, STATIONS, stationFor, cam, camera,
+    setTasks, sink, setSunk, flyTo, jumpTo, setCalm, diveStation, setDive, setDiveDepth, puff, setSeason, setWeather, setAlerts, setTime, pick, setHover, STATIONS, stationFor, cam, camera,
     onFrame: fn => listeners.push(fn),
     get sunkCount() { return heapN; },
     get sunAlt() { return sunAlt; }

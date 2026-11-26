@@ -347,3 +347,91 @@ html[data-night="1"] .tag.fresh { background: rgba(40,70,82,.95); }
 .hold.on { opacity: 1; }
 .hold.on circle { animation: holdfill .7s linear forwards; }
 @keyframes holdfill { to { stroke-dashoffset: 0; } }
+
+/* ================================================================
+   レイアウトの線（すべての部品はこの線にそろえる）
+   ・外の余白 --edge、部品のあいだ --gap、8の倍数だけを使う
+   ・上の帯：左の列の上端（--edge）から高さ --band。ロゴ・あいさつ・ボタンはこの帯の中央にそろえる
+   ・ボタン類の高さは --ctl
+   ・パネルの上端 = 左の列の最初のメニューの上端（--edge + --band + --gap）
+   ・中身の左端 = 左の列の右端 + --gap
+   チェックは tools/align-check.js（1440・1024・768 の幅で測る）
+   ================================================================ */
+:root { --edge: 16px; --gap: 16px; --band: 64px; --ctl: 40px; --side-w: 210px; --content-l: calc(var(--edge) + var(--side-w) + var(--gap)); }
+.side { top: var(--edge); bottom: var(--edge); left: var(--edge); width: var(--side-w); padding: 0 12px var(--gap); gap: 4px; }
+.side .brand { height: var(--band); margin-bottom: calc(var(--gap) - 4px); /* 下のメニューとの間の gap 4px を引く */ padding: 0 12px; display: flex; align-items: center; line-height: 1; flex: none; }
+.top { top: var(--edge); left: var(--content-l); right: var(--edge); }
+.hdr { height: var(--band); margin: 0 0 var(--gap); align-items: center; }
+.greet h1 { line-height: 1.2; }
+.acts { gap: 8px; align-items: center; }
+.tide, .calm, .addbtn { height: var(--ctl); box-sizing: border-box; margin: 0; }
+.tide { display: block; padding: 6px 12px 0; line-height: 18px; }
+.tide .bar { margin-top: 4px; }
+.calm { padding-top: 0; padding-bottom: 0; }
+.addbtn { display: inline-flex; align-items: center; padding: 0 16px; }
+.row { gap: var(--gap); align-items: stretch; }
+.panel { padding: 16px; }
+.panel h2 { margin: 0 0 8px; line-height: 16px; }
+.bedhint { left: var(--content-l); bottom: var(--edge); }
+.mapview, .bedview { left: var(--content-l); top: var(--edge); }
+.ticks, .axis { right: var(--edge); }
+@media (max-width: 820px) { .top, .bedhint, .bedview, .mapview { left: var(--edge); right: var(--edge); } .hdr { height: auto; min-height: var(--band); align-items: stretch; } .acts { justify-content: flex-end; flex-wrap: wrap; } }
+
+/* あいさつ：日付と同じ1行にして、ロゴ「Umi」と文字の下の線（ベースライン）をそろえる */
+.greet { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
+.greet h1 { font-size: 24px; line-height: 1; }
+.greet .meta { margin: 0; white-space: nowrap; }
+/* 潮位：箱が文字より小さくならないように。狭いときは「あと◯」を省く */
+.tide { flex: none; white-space: nowrap; }
+@media (max-width: 1180px) { .tide .rest { display: none; } }
+.acts { flex: none; }
+/* 一覧の凪ボタン */
+.calm.small { height: 32px; padding: 0 12px 0 8px; gap: 8px; }
+.calm.small b { font-size: 12px; }
+.side .brand { display: block; line-height: var(--band); }
+.greet { position: relative; top: 3.5px; } /* tools/align-check.js で測って、Umi のベースラインに合わせた値 */
+
+/* ================================================================ ダイブ */
+.dive { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+.dive > * { pointer-events: auto; }
+.dsetup, .drest { position: fixed; top: 50%; left: 50%; width: min(440px, calc(100% - 32px)); padding: 16px; transform: translate(-50%, -46%) scale(.97); opacity: 0; pointer-events: none;
+  transition: opacity .25s ease, transform .3s cubic-bezier(.2,.8,.2,1); }
+.dsetup.on, .drest.on { opacity: 1; transform: translate(-50%, -50%); pointer-events: auto; }
+.dsetup:not(.on), .drest:not(.on), .dhud:not(.on), .dgauge:not(.on) { pointer-events: none !important; }
+.dlab { display: block; font-size: 12px; font-weight: 600; color: var(--sub); margin: 16px 0 8px; }
+.dlab select { display: block; width: 100%; margin-top: 8px; height: 40px; border-radius: 10px; border: 1px solid rgba(22,48,58,.14); background: rgba(255,255,255,.95); color: #16303a; font-size: 14px; padding: 0 10px; }
+.dmodes { display: flex; gap: 8px; }
+.dmodes button { flex: 1; height: 40px; border-radius: 10px; border: 1px solid rgba(22,48,58,.14); background: rgba(255,255,255,.7); color: var(--ink); font-size: 14px; }
+.dmodes button.on { background: #3f6e74; color: #fff; border-color: #3f6e74; }
+.dnote { font-size: 12px; color: var(--sub); margin: 8px 0 0; line-height: 1.6; }
+.dsetup .go, .drest .go { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+/* 潜っている間：ほかのものは消して、時間とタスクだけ */
+body.diving .top, body.diving #tags, body.diving .bedhint, body.diving .mapview, body.diving .bedview { opacity: 0 !important; pointer-events: none !important; }
+body.diving .side { opacity: .35; transition: opacity .8s; }
+.dhud { position: fixed; left: 50%; bottom: 48px; transform: translate(-50%, 20px); width: min(560px, calc(100% - 32px)); text-align: center; color: #eaf6f6;
+  text-shadow: 0 1px 12px rgba(0,20,30,.6); opacity: 0; transition: opacity .8s ease .6s, transform .8s ease .6s; }
+.dhud.on { opacity: 1; transform: translate(-50%, 0); }
+.dtask { font-size: 15px; font-weight: 600; opacity: .9; }
+.dtime { font-size: 64px; font-weight: 300; letter-spacing: .04em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.dsub2 { font-size: 12px; opacity: .75; margin-bottom: 16px; }
+.dhud form { margin: 0 0 16px; }
+.dhud input { width: 100%; height: 40px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: rgba(10,40,50,.35); color: #fff; padding: 0 16px; font-size: 13px;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); text-shadow: none; box-sizing: border-box; }
+.dhud input::placeholder { color: rgba(230,245,245,.65); }
+.dhud .btn { background: rgba(255,255,255,.16); color: #fff; padding: 8px 24px; }
+.dgauge { position: fixed; right: 32px; top: 50%; height: 40vh; width: 4px; transform: translateY(-50%); border-radius: 4px; background: rgba(255,255,255,.18); opacity: 0; transition: opacity .8s ease .6s; }
+.dgauge.on { opacity: 1; }
+.dgauge i { position: absolute; left: 0; right: 0; top: 0; height: 0; border-radius: 4px; background: linear-gradient(#bfe6ea, #4f9aa2); transition: height 1s linear; }
+.dgauge span { position: absolute; right: 12px; bottom: -24px; font-size: 12px; color: #eaf6f6; white-space: nowrap; text-shadow: 0 1px 8px rgba(0,20,30,.6); }
+/* 減圧：波の呼吸（4秒で吸って、4秒で吐く） */
+.breath { display: flex; align-items: center; gap: 16px; margin: 8px 0; }
+.breath b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.breath p { margin: 4px 0 0; font-size: 12px; color: var(--sub); }
+.ring { width: 56px; height: 56px; flex: none; border-radius: 50%; border: 2px solid rgba(79,154,162,.35); display: grid; place-items: center; }
+.ring i { width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(#bfe6ea, #4f9aa2); animation: breathe 8s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { transform: scale(.8); opacity: .7; } 50% { transform: scale(2); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ring i { animation: none; } }
+#dBubbles .bub { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+#dBubbles .bub span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+html[data-night="1"] .dmodes button { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); }
+html[data-night="1"] .dlab select { background: rgba(30,55,66,.95); color: #eaf6f6; border-color: rgba(255,255,255,.18); }

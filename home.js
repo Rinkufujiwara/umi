@@ -1,10 +1,10 @@
 // Umi ホーム：湖に浮かぶブイ＝タスク。終えたら沈める。ホイールはページではなくカメラを動かす
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=14';
-import { parseQuick } from './parse.js?v=14';
-import * as St from './store.js?v=14';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=14';
+import { createHome } from './home-scene.js?v=19';
+import { parseQuick } from './parse.js?v=19';
+import * as St from './store.js?v=19';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=19';
 gsap.registerPlugin(Observer);
 
 const $ = id => document.getElementById(id);
@@ -42,12 +42,17 @@ function urgent(t) {
   }
   return false;
 }
+let lastKeep = null;
 function calmSet() { return new Set(rank(live().filter(t => secOf(t) === 'surface')).slice(0, 3).map(t => t.id)); }
 
 function render() {
   const L = live(), calm = S.settings.calm, keep = calm ? calmSet() : null;
   home.setTasks(L.map(t => ({ id: t.id, kind: kindOf(t), sec: secOf(t), hidden: calm && !keep.has(t.id), ...St.placeOf(t, S.settings.budget, areaName(t)) })));
   home.setSunk(S.tasks.filter(t => t.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(t => t.kind));
+  // 凪のあいだに残る3つが入れ替わったら、その配置に合わせて寄り直す
+  const keepKey = calm ? [...keep].sort().join() : '';
+  if (calm && lastKeep !== null && keepKey !== lastKeep) frameHome(1.8, 1400);
+  lastKeep = keepKey;
   sharkSet = new Set(St.sharkIds(L.filter(t => !calm || keep.has(t.id)), S.settings.budget, areaName));
   home.setAlerts([...sharkSet]);
 
@@ -87,9 +92,9 @@ function render() {
   const f = ranked[0], top = ranked.slice(1, 4);
   $('cards').innerHTML = top.length ? top.map(cardHTML).join('') : '<div class="empty">ほかにはありません</div>';
   focusId = f ? f.id : null;
-  $('focus').innerHTML = f ? `${cardHTML(f)}<div class="go"><button class="btn pri" data-sink="${f.id}">沈める</button><button class="btn" data-later="${f.id}">明日へ</button></div>`
+  $('focus').innerHTML = f ? `${cardHTML(f)}<div class="go"><button class="btn pri" data-sink="${f.id}">沈める</button><button class="btn" data-dive="${f.id}">潜る</button><button class="btn" data-later="${f.id}">明日へ</button></div>`
     : '<div class="empty">急ぐものはありません。</div>';
-  $('calmBtn').setAttribute('aria-pressed', String(calm));
+  document.querySelectorAll('#calmBtn, [data-calm]').forEach(b => b.setAttribute('aria-pressed', String(calm)));
   const doneN = S.tasks.filter(t => t.done).length;
   $('bedCount').textContent = `湖底　${doneN}`;
   renderBed();
@@ -121,7 +126,7 @@ let hlId = null;
 home.onFrame((pts, { inside }) => {
   const seen = new Set();
   // 名札：手前を最優先、次に右。常に出すのは上位3つ。ほかはカーソルを合わせたときだけ
-  const SHOW = station === 'map' ? 999 : 0;
+  const SHOW = station === 'map' ? 999 : S.settings.calm ? 3 : 0; // 凪では残った3つの名前を出す
   const order = pts.slice().sort((a, b) => (Math.round(a.dist / 22) - Math.round(b.dist / 22)) || (b.x - a.x));
   const fresh = Date.now() < freshUntil ? freshId : null;
   if (fresh) order.sort((a, b) => (b.id === fresh) - (a.id === fresh)); // 追加したばかりのものは、いちばん先に場所をとる
@@ -247,7 +252,7 @@ function openPop(id, x, y) {
     <div class="why" title="価値 ${c.I}・痛手 ${c.P}・手間 ${c.E}・待ち ${c.D}">${c.evaluated ? '潮見' : '目安'}：価値 ${c.I}・痛手 ${c.P}・待ち ${c.D}${c.why ? `　${esc(c.why)}` : ''}</div>
     <div class="wt">重さ ${[1, 2, 3].map(w => `<button class="btn${lvl === w ? ' pri' : ''}" data-weight="${w}">${St.WEIGHT[w]}</button>`).join('')}</div>
     ${later}
-    <div class="go"><button class="btn pri" data-sink="${t.id}">沈める</button>${moves}<a class="btn" href="list.html" style="text-decoration:none">一覧で編集</a></div>`;
+    <div class="go"><button class="btn pri" data-sink="${t.id}">沈める</button><button class="btn" data-dive="${t.id}">潜る</button>${moves}<a class="btn" href="list.html" style="text-decoration:none">一覧で編集</a></div>`;
   const pop = $('pop'); pop.classList.add('open');
   const w = 290, h = pop.offsetHeight;
   pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, x - w / 2))}px`;
@@ -302,7 +307,28 @@ $('scene').addEventListener('click', e => { const id = home.pick(e.clientX, e.cl
 $('scene').addEventListener('pointermove', e => { if (popId) return; const id = home.pick(e.clientX, e.clientY); home.setHover(id); hlId = id; $('scene').style.cursor = id ? 'pointer' : ''; });
 
 // 凪モード
-$('calmBtn').onclick = () => { S.settings.calm = !S.settings.calm; save(); render(); };
+function homeInsets() {
+  const side = document.querySelector('.side').getBoundingClientRect(), top = $('top').getBoundingClientRect();
+  return { left: (innerWidth > 820 ? side.right : 0) + 24, top: top.bottom + 20, right: 28, bottom: 28 };
+}
+// 凪：水面が一度大きくうねる → いらないブイが沈む → 静まりながら、残った3つが収まるところまで寄る
+let calmTimer = 0;
+function frameHome(dur, delay = 0) {
+  clearTimeout(calmTimer);
+  calmTimer = setTimeout(() => {
+    if (station !== 'home' || moving) return;
+    moving = true; document.body.classList.add('moving');
+    home.flyTo(home.stationFor('home', homeInsets()), dur).then(() => { moving = false; document.body.classList.remove('moving'); });
+  }, delay);
+}
+function toggleCalm() {
+  S.settings.calm = !S.settings.calm; home.setCalm(S.settings.calm); save(); render();
+  if (station === 'home') frameHome(S.settings.calm ? 2.6 : 2.2, S.settings.calm ? 700 : 300);
+  // 一覧（空から）では、沈み終わってから残ったものに合わせて高さを変える
+  if (station === 'map') setTimeout(() => { if (station === 'map' && !moving) { moving = true; home.flyTo(home.stationFor('map'), 2).then(() => { moving = false; }); } }, S.settings.calm ? 1900 : 400);
+}
+$('calmBtn').onclick = toggleCalm;
+document.addEventListener('click', e => { if (e.target.closest('[data-calm]')) toggleCalm(); });
 
 // 追加
 // よく使う言葉：押すと入力欄に足す
@@ -404,13 +430,13 @@ function wetPanels() {
 const ORDER = ['map', 'home', 'bed'];
 function step(dir) { const i = ORDER.indexOf(station); goTo(ORDER[Math.max(0, Math.min(ORDER.length - 1, i + dir))]); }
 function goTo(name) {
-  if (name === station || moving) return;
+  if (name === station || moving || station === 'dive') return;
   const wasHome = station === 'home', from = station;
   moving = true; station = name; closePop(); closeAdd();
   // 空から見るときは、左の列と上のパネルの実際の大きさを測って、その外にブイを収める
   const side = document.querySelector('.side').getBoundingClientRect(), mv = $('mapview');
   const ins = { left: (innerWidth > 820 ? side.right : 0) + 18, top: mv.offsetTop + mv.offsetHeight + 18, right: 24, bottom: 24 };
-  const st = home.stationFor(name, ins);
+  const st = home.stationFor(name, name === 'home' ? homeInsets() : ins);
   // 移動中は名札を消す（チカチカするので）
   document.body.classList.add('moving');
   const down = name === 'bed';
@@ -435,7 +461,7 @@ function goTo(name) {
   }
 }
 document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) goTo(g.dataset.go); });
-const overlayOpen = () => $('addbox').classList.contains('open') || $('pop').classList.contains('open') || $('envMenu').classList.contains('open');
+const overlayOpen = () => station === 'dive' || !$('dive').hidden || $('addbox').classList.contains('open') || $('pop').classList.contains('open') || $('envMenu').classList.contains('open');
 Observer.create({
   target: window, type: 'wheel,touch', tolerance: 24, preventDefault: true, wheelSpeed: -1,
   onUp: () => { if (!overlayOpen() && !scrollingInside()) step(1); },
@@ -503,6 +529,7 @@ hooksReady = true;
 Cloud.onSaved = ok => { if (!ok) toast('アカウントに保存できませんでした'); };
 
 render();
+if (S.settings.calm) { home.setCalm(true, true); home.jumpTo(home.stationFor('home', homeInsets())); }
 renderEnv();
 requestAnimationFrame(moveInd);
 // 時間帯：1分ごとに太陽の高さを更新（?hour=19.5 で確かめられる）
@@ -516,3 +543,136 @@ function tick() {
 tick(); setInterval(tick, 60e3); Env.on(tick);
 const qv = new URLSearchParams(location.search).get('view'); if (ORDER.includes(qv)) setTimeout(() => goTo(qv), 600);
 window.UmiHome = { goTo, complete, get S() { return S; }, home };
+
+// ?check=1 のとき、レイアウトの線を測って結果をタイトルに書く（headless のテスト用）
+if (new URLSearchParams(location.search).has('check')) {
+  const sc = document.createElement('script'); sc.src = 'tools/align-check.js?' + Date.now();
+  sc.onload = () => setTimeout(() => { document.title = 'ALIGN ' + JSON.stringify(window.alignCheck()); }, 2500);
+  document.head.appendChild(sc);
+}
+
+// ================================================================ ダイブ（集中タイマー）
+// 先行事例と案の評価は docs/dive-research.md。
+// 潜る先のブイの下へ湖の中を下りる（深さ＝時間）→ 浮かんだ考えは泡メモ → 浮上 → 減圧（潜った時間の1/5）
+const DIVE_KEY = 'umi.dive';
+let dv = null, dvTimer = 0, dvMode = 25, restEnd = 0;
+const fmt = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const dvSave = () => { try { dv ? localStorage.setItem(DIVE_KEY, JSON.stringify(dv)) : localStorage.removeItem(DIVE_KEY); } catch (_) {} };
+function dvShow(part) { // setup / hud / rest
+  $('dive').hidden = false; document.body.classList.toggle('diving', part === 'hud');
+  $('dSetup').classList.toggle('on', part === 'setup'); $('dHud').classList.toggle('on', part === 'hud');
+  $('dGauge').classList.toggle('on', part === 'hud'); $('dRest').classList.toggle('on', part === 'rest');
+}
+function openDive(id) {
+  if (station === 'dive' || moving) return;
+  closePop(); closeAdd();
+  const L = rank(live());
+  const pick = id || focusId || L[0]?.id;
+  if (!pick) { toast('潜る先のタスクがありません'); return; }
+  $('dTask').innerHTML = L.map(t => `<option value="${t.id}"${t.id === pick ? ' selected' : ''}>${esc(t.title)}</option>`).join('');
+  const t = S.tasks.find(x => x.id === pick);
+  setMode(t?.est && t.est >= 50 ? 50 : 25); dvShow('setup'); setTimeout(() => $('dStart').focus(), 50);
+}
+function setMode(m) {
+  dvMode = m;
+  $('dModes').querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', +b.dataset.m === m));
+  $('dNote').textContent = m ? `${m}分たつと、自動で浮上します。そのあと${Math.max(1, Math.round(m / 5))}分の減圧（休憩）。` : '自分で「浮上する」まで潜ります。休憩は、潜った時間の5分の1。';
+}
+$('dModes').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) setMode(+b.dataset.m); });
+$('dCancel').onclick = () => { $('dive').hidden = true; };
+$('dStart').onclick = () => startDive($('dTask').value, dvMode);
+async function startDive(id, min, resume) {
+  if (!id) return;
+  if (station !== 'home') { goTo('home'); await new Promise(r => setTimeout(r, 1900)); }
+  dv = resume || { id, min, start: Date.now(), bubbles: [] }; dvSave();
+  station = 'dive'; moving = true; document.body.classList.add('moving');
+  const t = S.tasks.find(x => x.id === dv.id);
+  $('dTaskName').textContent = t ? t.title : '';
+  $('dSub').textContent = dv.min ? `${dv.min}分のダイブ` : '時間は決めない';
+  dvShow('hud'); dvTick();
+  plop();
+  await home.flyTo(home.diveStation(dv.id, 0), 2.4);
+  home.setDive(dv.id, 0); moving = false; document.body.classList.remove('moving');
+  clearInterval(dvTimer); dvTimer = setInterval(dvTick, 500); dvTick();
+}
+function dvElapsed() { return Date.now() - dv.start; }
+function dvTick() {
+  if (!dv || dv.ended) return;
+  const el = dvElapsed(), total = dv.min * 60e3;
+  // 深さ：時間を決めたときはその割合、決めないときはだんだん深く（40分で6割ほど）
+  const k = dv.min ? Math.min(1, el / total) : 1 - Math.exp(-el / (45 * 60e3));
+  home.setDiveDepth(k);
+  $('dDepth').style.height = `${k * 100}%`; $('dDepthTxt').textContent = `${Math.round(k * 30)}m`;
+  const shown = dv.min ? fmt(total - el) : fmt(el);
+  $('dTime').textContent = shown; document.title = `▼ ${shown} · Umi`;
+  if (dv.min && el >= total) surface();
+}
+$('dBubbleForm').addEventListener('submit', e => {
+  e.preventDefault(); const v = $('dBubble').value.trim(); if (!v || !dv) return;
+  dv.bubbles.push(v); dvSave(); $('dBubble').value = ''; home.puff();
+});
+$('dUp').onclick = () => surface();
+function surface() {
+  if (!dv || dv.ended) return;
+  clearInterval(dvTimer);
+  const el = dvElapsed(), min = Math.max(1, Math.round((dv.min ? Math.min(el, dv.min * 60e3) : el) / 60e3));
+  dv.ended = Date.now(); dv.used = min; dvSave();
+  const t = S.tasks.find(x => x.id === dv.id);
+  if (t && el > 60e3) { t.dives = [...(t.dives || []), { at: dv.start, min }]; save(); }
+  plop();
+  document.title = 'Umi';
+  home.setDive(null); moving = true; document.body.classList.add('moving');
+  station = 'home';
+  home.flyTo(home.stationFor('home', homeInsets()), 2.4).then(() => { moving = false; document.body.classList.remove('moving'); });
+  setTimeout(wetPanels, 1700);
+  showRest(min, t);
+}
+function showRest(min, t) {
+  const rest = Math.max(1, Math.round(min / 5));
+  restEnd = (dv.ended || Date.now()) + rest * 60e3;
+  $('dSummary').textContent = `${min}分 潜りました`;
+  renderBubbles(); dvShow('rest');
+  $('dSink').hidden = !t || t.done;
+  const upd = () => {
+    const left = restEnd - Date.now();
+    $('dRestTime').textContent = left > 0 ? `減圧 ${fmt(left)}` : '減圧おわり';
+    $('dBreathTxt').textContent = left > 0 ? '波に合わせて、ゆっくり吸って、吐いて' : 'また潜れます';
+    if (left <= 0) clearInterval(dvTimer);
+  };
+  clearInterval(dvTimer); upd(); dvTimer = setInterval(upd, 500);
+}
+function renderBubbles() {
+  const b = dv?.bubbles || [];
+  $('dBubbles').innerHTML = b.length ? `<div class="dlab">泡メモ（${b.length}）</div>` + b.map((x, i) => `<div class="bub"><span>${esc(x)}</span><button class="btn" data-bf="${i}">浮かべる</button><button class="btn" data-bx="${i}">消す</button></div>`).join('') : '';
+}
+$('dBubbles').addEventListener('click', e => {
+  const f = e.target.closest('[data-bf]'), x = e.target.closest('[data-bx]');
+  if (!f && !x) return;
+  const i = +(f ? f.dataset.bf : x.dataset.bx), text = dv.bubbles[i];
+  if (f) { // 泡 → タスク（日付などは追加の入力欄と同じように読む）
+    const p = parseQuick(text);
+    const t = { id: St.uid(), title: p.title || text, area: p.area ? St.areaByName(S, p.area) : null, due: p.due, time: p.time, est: p.est, kind: p.kind, repeat: p.repeat,
+      pin: p.someday ? 'depths' : (p.due ? null : 'surface'), notes: '', done: false, doneAt: null, w: p.weight ? { ...St.WEIGHT_IP[p.weight] } : undefined,
+      ord: Math.max(0, ...S.tasks.map(x => x.ord)) + 1, createdAt: Date.now() };
+    S.tasks.push(t); freshId = t.id; freshUntil = Date.now() + 5000; save(); render();
+  }
+  dv.bubbles.splice(i, 1); dvSave(); renderBubbles();
+});
+function endDive() { clearInterval(dvTimer); dv = null; dvSave(); $('dive').hidden = true; document.body.classList.remove('diving'); document.title = 'Umi'; }
+$('dSink').onclick = () => { const id = dv?.id; endDive(); if (id) complete(id); };
+$('dAgain').onclick = () => { const id = dv?.id, m = dv?.min ?? 25; endDive(); openDive(id); setMode(m); };
+$('dHome').onclick = () => endDive();
+document.addEventListener('click', e => {
+  const d = e.target.closest('[data-dive]'); if (d) { openDive(d.dataset.dive); return; }
+  if (e.target.closest('[data-dive-open]')) openDive();
+});
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('dive').hidden && $('dSetup').classList.contains('on')) $('dive').hidden = true; });
+// 再読み込みしても続きから（時刻で数えているので、離れていた間も進んでいる。離れても責めない）
+try {
+  const saved = JSON.parse(localStorage.getItem(DIVE_KEY) || 'null');
+  if (saved && S.tasks.some(t => t.id === saved.id)) {
+    if (saved.ended) { dv = saved; if (Date.now() - dv.ended < 30 * 60e3) showRest(dv.used || 1, S.tasks.find(x => x.id === dv.id)); else endDive(); }
+    else setTimeout(() => startDive(saved.id, saved.min, saved), 800);
+  } else if (saved) localStorage.removeItem(DIVE_KEY);
+} catch (_) {}
+window.UmiHome.dive = { openDive, startDive, surface, get dv() { return dv; } };
