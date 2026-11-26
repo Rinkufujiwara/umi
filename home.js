@@ -1,15 +1,26 @@
 // Umi ホーム：湖に浮かぶブイ＝タスク。終えたら沈める。ホイールはページではなくカメラを動かす
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=10';
-import { parseQuick } from './parse.js?v=10';
-import * as St from './store.js?v=10';
+import { createHome } from './home-scene.js?v=11';
+import { parseQuick } from './parse.js?v=11';
+import * as St from './store.js?v=11';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=11';
 gsap.registerPlugin(Observer);
 
 const $ = id => document.getElementById(id);
-const { esc, secOf, dueLabel, estLabel, rank } = St;
+const { esc, secOf, dueLabel, estLabel } = St;
+const areaName = t => (S.areas.find(a => a.id === t.area) || {}).name || '';
+const rank = list => St.rank(list, S.settings.budget, areaName);
+const kindOf = t => St.kindOf(t, areaName(t));
+const levelOf = t => St.weightLevel(t, S.settings.budget, areaName(t));
+let sharkSet = new Set();
 let S = St.load();
-const save = () => St.save(S);
+let hooksReady = false;
+// ログイン中はアカウント（Firestore）へ、していないときはこのブラウザへ保存。保存のたびに潮見に未評価のものを渡す
+const save = () => {
+  if (Cloud.user) Cloud.queueSave(JSON.stringify(S)); else St.save(S);
+  if (hooksReady) Shiomi.kick(shiomiHooks);
+};
 save();
 
 const home = createHome($('scene'));
@@ -35,9 +46,10 @@ function calmSet() { return new Set(rank(live().filter(t => secOf(t) === 'surfac
 
 function render() {
   const L = live(), calm = S.settings.calm, keep = calm ? calmSet() : null;
-  home.setTasks(L.map(t => ({ id: t.id, kind: t.kind, sec: secOf(t), hidden: calm && !keep.has(t.id), ...St.placeOf(t, S.settings.budget) })));
+  home.setTasks(L.map(t => ({ id: t.id, kind: kindOf(t), sec: secOf(t), hidden: calm && !keep.has(t.id), ...St.placeOf(t, S.settings.budget, areaName(t)) })));
   home.setSunk(S.tasks.filter(t => t.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(t => t.kind));
-  home.setAlerts(rank(L.filter(t => urgent(t) && (!calm || keep.has(t.id)))).map(t => t.id));
+  sharkSet = new Set(St.sharkIds(L.filter(t => !calm || keep.has(t.id)), S.settings.budget, areaName));
+  home.setAlerts([...sharkSet]);
 
   const d = new Date();
 
@@ -85,7 +97,7 @@ function render() {
 function cardHTML(t) {
   const dl = dueLabel(t);
   return `<button class="card" data-open="${t.id}"><div class="t">${esc(t.title)}</div>
-    ${t.kind ? `<span class="badge ${t.kind}">${t.kind === 'must' ? '必須' : '自主'}</span>` : ''}
+    <span class="badge ${kindOf(t)}">${kindOf(t) === 'must' ? '必須' : '自主'}</span>
     <div class="m">${dl ? `<span class="${dl.late ? 'late' : ''}">${esc(dl.text)}</span>` : '期限なし'}${t.est ? `　約${estLabel(t.est)}` : ''}</div></button>`;
 }
 // 湖底：終えたタスクはすべて、沈んだブイのまま積もっていく
@@ -127,7 +139,7 @@ home.onFrame((pts, { inside }) => {
     if (!el) { el = document.createElement('div'); el.className = 'tag'; el.dataset.open = p.id; $('tags').appendChild(el); tagEls.set(p.id, el); }
     const html = `<i style="background:${KIND_COLOR[t.kind || 'none']}"></i>${esc(t.title)}`;
     if (el._h !== html) { el.innerHTML = html; el._h = html; el._w = 0; }
-    el.className = 'tag' + (hlId === p.id ? ' hl' : '') + (urgent(t) ? ' urgent' : '') + (show ? '' : ' off');
+    el.className = 'tag' + (hlId === p.id ? ' hl' : '') + (sharkSet.has(t.id) ? ' urgent' : '') + (show ? '' : ' off');
     if (!show) continue;
     if (!el._w) { el._w = el.offsetWidth || 160; el._hh = el.offsetHeight || 24; }
     const w = el._w, h = el._hh, gap = 10;
@@ -201,9 +213,10 @@ function postpone(id, days) {
 // 浅瀬へ：軽くする（左へ）
 function lighter(id) {
   const t = S.tasks.find(x => x.id === id); if (!t) return;
-  const prev = t.weight || 2; t.weight = Math.max(1, prev - 1);
+  const prev = t.w ? { ...t.w } : null, lvl = Math.max(1, levelOf(t) - 1);
+  t.w = { ...(t.w || {}), ...St.WEIGHT_IP[lvl] }; t.touchedAt = Date.now();
   delete t.sample; save(); closePop(); render();
-  toast(`「${t.title}」を浅瀬へ（重さ：${St.WEIGHT[t.weight]}）`, () => { t.weight = prev; });
+  toast(`「${t.title}」を浅瀬へ（重さ：${St.WEIGHT[lvl]}）`, () => { t.w = prev; });
 }
 function moveTo(id, sec) {
   const t = S.tasks.find(x => x.id === id); if (!t) return;
@@ -221,13 +234,15 @@ function openPop(id, x, y) {
   const t = S.tasks.find(x => x.id === id); if (!t || t.done) return;
   popId = id; hlId = id; home.setHover(id);
   const dl = dueLabel(t), sec = secOf(t), a = S.areas.find(a => a.id === t.area);
-  const moves = `<button class="btn" data-lighter${(t.weight || 2) <= 1 ? ' disabled' : ''} title="軽くする（左の浅瀬へ）">浅瀬へ</button>`;
+  const lvl = levelOf(t), c = St.compute(t, S.settings.budget, areaName(t));
+  const moves = `<button class="btn" data-lighter${lvl <= 1 ? ' disabled' : ''} title="軽くする（左の浅瀬へ）">浅瀬へ</button>`;
   const later = `<div class="wt">遠くへ ${[[1, '＋1日'], [3, '＋3日'], [7, '＋1週']].map(([n, l]) => `<button class="btn" data-post="${n}">${l}</button>`).join('')}</div>`;
   $('pop').innerHTML = `<h3>${esc(t.title)}</h3>
     <div class="m"><span>${SEC_NAME[sec]}</span>${dl ? `<span class="${dl.late ? 'late' : ''}">${esc(dl.text)}</span>` : ''}${t.est ? `<span>約${estLabel(t.est)}</span>` : ''}
-    ${t.kind ? `<span>${t.kind === 'must' ? '必須' : '自主'}</span>` : ''}<span>重さ：${St.WEIGHT[t.weight || 2]}</span>${a ? `<span>${esc(a.name)}</span>` : ''}${t.repeat ? `<span>↻ ${St.REPEAT[t.repeat]}</span>` : ''}</div>
+    <span>${c.must ? '必須' : '自主'}</span><span>重さ：${St.WEIGHT[lvl]}</span>${a ? `<span>${esc(a.name)}</span>` : ''}${t.repeat ? `<span>↻ ${St.REPEAT[t.repeat]}</span>` : ''}</div>
     ${t.notes ? `<div class="m">${esc(t.notes)}</div>` : ''}
-    <div class="wt">重さ ${[1, 2, 3].map(w => `<button class="btn${(t.weight || 2) === w ? ' pri' : ''}" data-weight="${w}">${St.WEIGHT[w]}</button>`).join('')}</div>
+    <div class="why" title="価値 ${c.I}・痛手 ${c.P}・手間 ${c.E}・待ち ${c.D}">${c.evaluated ? '潮見' : '目安'}：価値 ${c.I}・痛手 ${c.P}・待ち ${c.D}${c.why ? `　${esc(c.why)}` : ''}</div>
+    <div class="wt">重さ ${[1, 2, 3].map(w => `<button class="btn${lvl === w ? ' pri' : ''}" data-weight="${w}">${St.WEIGHT[w]}</button>`).join('')}</div>
     ${later}
     <div class="go"><button class="btn pri" data-sink="${t.id}">沈める</button>${moves}<a class="btn" href="list.html" style="text-decoration:none">一覧で編集</a></div>`;
   const pop = $('pop'); pop.classList.add('open');
@@ -247,7 +262,7 @@ document.addEventListener('click', e => {
   const li = e.target.closest('[data-lighter]'); if (li && popId) { lighter(popId); return; }
   const rs = e.target.closest('[data-raise]'); if (rs) { raise(rs.dataset.raise); return; }
   const wt = e.target.closest('[data-weight]');
-  if (wt && popId) { const t = S.tasks.find(x => x.id === popId); t.weight = +wt.dataset.weight; delete t.sample; save(); const id = popId, r = $('pop').getBoundingClientRect(); render(); openPop(id, r.left + r.width / 2, r.bottom + 24); return; }
+  if (wt && popId) { const t = S.tasks.find(x => x.id === popId); t.w = { ...(t.w || {}), ...St.WEIGHT_IP[+wt.dataset.weight] }; t.touchedAt = Date.now(); delete t.sample; save(); const id = popId, r = $('pop').getBoundingClientRect(); render(); openPop(id, r.left + r.width / 2, r.bottom + 24); return; }
   const op = e.target.closest('[data-open]');
   if (op) {
     const tag = tagEls.get(op.dataset.open);
@@ -283,7 +298,7 @@ $('addForm').addEventListener('submit', e => {
   const p = parseQuick($('addInput').value); if (!p.title) return;
   const t = { id: St.uid(), title: p.title, area: p.area ? St.areaByName(S, p.area) : null, due: p.due, time: p.time, est: p.est,
     kind: p.kind, repeat: p.repeat, pin: p.someday ? 'depths' : (p.due ? null : 'surface'), notes: '', done: false, doneAt: null,
-    weight: p.weight || 2, ord: Math.max(0, ...S.tasks.map(x => x.ord)) + 1, createdAt: Date.now() };
+    w: p.weight ? { ...St.WEIGHT_IP[p.weight] } : undefined, ord: Math.max(0, ...S.tasks.map(x => x.ord)) + 1, createdAt: Date.now() };
   S.tasks.push(t); save(); render(); closeAdd();
   toast(`${SEC_NAME[secOf(t)]}に浮かべました：${t.title}`, () => { S.tasks = S.tasks.filter(x => x !== t); });
 });
@@ -301,6 +316,7 @@ function renderEnv() {
   $('envSmall').textContent = `${s}・${k.label}（${k.sky}）`;
   $('envMenu').innerHTML = `<p style="margin:0 0 6px;font-size:12px;color:var(--sub)">季節</p><div class="go" style="margin:0 0 12px">${SEASONS.map(([k, v]) => `<button class="btn${S.settings.season === k ? ' pri' : ''}" data-season="${k}">${v}</button>`).join('')}</div>
     <p style="margin:0 0 6px;font-size:12px;color:var(--sub)">空と水面（ふだんは、やることの詰まり具合で自動）</p><div class="go" style="margin:0 0 12px">${WEATHERS.map(([k, v]) => `<button class="btn${Env.weatherMode === k ? ' pri' : ''}" data-weather="${k}">${v}</button>`).join('')}</div>
+    <p style="margin:0 0 6px;font-size:12px;color:var(--sub)">1日に使える時間（潮位と、作業にかかる日数の計算に使う）</p><div class="go" style="margin:0 0 12px">${[2, 3, 4, 5, 6, 8].map(h => `<button class="btn${S.settings.budget === h * 60 ? ' pri' : ''}" data-hours="${h}">${h}時間</button>`).join('')}</div>
     <p style="margin:0 0 6px;font-size:12px;color:var(--sub)">音</p><div class="go" style="margin:0"><button class="btn${S.settings.sound ? ' pri' : ''}" data-sound="1">沈めるときの音 ${S.settings.sound ? 'オン' : 'オフ'}</button></div>
     <p style="margin:10px 0 0;font-size:11px;color:var(--faint)">${esc(Env.statusText())}${Env.auto.reason ? `<br>${esc(Env.auto.reason)}` : ''}</p>`;
 }
@@ -309,6 +325,7 @@ $('envNav').onclick = e => { e.stopPropagation(); $('envMenu').classList.toggle(
 $('envMenu').addEventListener('click', e => {
   e.stopPropagation();
   const s = e.target.closest('[data-season]'), w = e.target.closest('[data-weather]'), so = e.target.closest('[data-sound]');
+  const hr = e.target.closest('[data-hours]'); if (hr) { S.settings.budget = +hr.dataset.hours * 60; save(); renderEnv(); render(); }
   if (s) { S.settings.season = s.dataset.season; save(); renderEnv(); }
   if (w) { S.settings.weather = w.dataset.weather; save(); Env.setWeatherMode(w.dataset.weather); }
   if (so) { S.settings.sound = !S.settings.sound; save(); renderEnv(); }
@@ -403,6 +420,48 @@ addEventListener('keydown', e => {
 addEventListener('storage', e => { if (e.key === St.KEY) { S = St.load(); render(); } });
 let lastDay = St.todayStr();
 setInterval(() => { if (St.todayStr() !== lastDay) { lastDay = St.todayStr(); render(); } }, 60e3);
+// ---------------------------------------------------------------- ログインと潮見（AI）
+const shiomiHooks = {
+  // まだ潮見が見ていないタスク（名前が変わったものも）
+  pending: () => S.tasks.filter(t => !t.done && !(t.ai && t.ai.title === t.title))
+    .map(t => ({ id: t.id, title: t.title, note: t.notes || '', project: areaName(t), hasDue: !!t.due })),
+  // あなたが重さを直した例（潮見がこの人の物差しとして使う）
+  examples: () => S.tasks.filter(t => t.w && (t.w.i != null || t.w.p != null)).slice(-6).map(t => {
+    const c = St.compute(t, S.settings.budget, areaName(t));
+    return { title: t.title, impact: c.I, penalty: c.P, effort: c.E, dependency: c.D, must: c.must };
+  }),
+  apply: results => {
+    for (const r of results) {
+      const t = S.tasks.find(x => x.id === r.id); if (!t) continue;
+      t.ai = { title: t.title, i: r.impact, p: r.penalty, e: r.effort, d: r.dependency, m: r.must, why: r.reason, mwhy: r.must_reason };
+    }
+    if (Cloud.user) Cloud.queueSave(JSON.stringify(S)); else St.save(S);
+    render();
+  },
+  status: () => renderAccount()
+};
+const SHIOMI_TEXT = { off: 'ログインすると潮見が重さを付けます', idle: '潮見：最新', busy: '潮見：考えています…', unset: '潮見：Vercel に API キーが未設定', denied: '潮見：このアカウントは許可されていません', error: '潮見：つながりません（あとで再試行）' };
+function renderAccount() {
+  const el = $('account'); if (!el) return;
+  if (!Cloud.ready) { el.innerHTML = ''; return; }
+  el.innerHTML = Cloud.user
+    ? `<div class="acct"><b title="${esc(Cloud.user.email || '')}">${esc(Cloud.user.displayName || Cloud.user.email || 'ログイン中')}</b><button class="linkbtn" id="signOut">ログアウト</button></div><small>${SHIOMI_TEXT[Shiomi.state] || ''}</small>`
+    : `<button class="btn gbtn" id="signIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/></svg>Google でログイン</button>`;
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#signIn')) Cloud.signIn?.();
+  if (e.target.closest('#signOut')) Cloud.signOut?.();
+});
+startCloud({
+  getJson: () => JSON.stringify(S),
+  setJson: json => { S = St.fromJson(json); render(); renderEnv(); },
+  localJson: () => JSON.stringify(St.load()),
+  onUser: () => { renderAccount(); Shiomi.kick(shiomiHooks, 800); },
+  toast: text => toast(text)
+}).catch(() => {});
+hooksReady = true;
+Cloud.onSaved = ok => { if (!ok) toast('アカウントに保存できませんでした'); };
+
 render();
 renderEnv();
 requestAnimationFrame(moveInd);

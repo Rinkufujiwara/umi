@@ -382,7 +382,7 @@ export function createHome(canvas) {
       b.userData.sec = t.sec;
       b.userData.cap.material.color.set(KIND[t.kind || 'none']);
       b.userData.lamp.material.emissive.set(KIND[t.kind || 'none']);
-      b.userData.base = lerp(3.3, 4.6, t.v); b.scale.setScalar(b.userData.base); // 遠いほど少し大きくして見やすく
+      b.userData.base = lerp(3.3, 4.6, t.v) * (t.size || 1); b.scale.setScalar(b.userData.base); // 遠いほど少し大きく、手間が大きいほど大きく
       b.visible = !t.hidden;
     }
     resolveOverlap();

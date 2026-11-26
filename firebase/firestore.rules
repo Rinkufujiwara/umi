@@ -1,0 +1,161 @@
+rules_version = '2';
+
+// Spanish Shelf learning data.
+//   users/{uid}/books/{book}               book = vocab | grammar
+//     stats.{itemId}      {wrong, correct, attempts, streak, last, updatedAt}
+//     markers.{itemId}    {color, createdAt}
+//     bookmarks.{bmId}    {itemId, title, color, createdAt, updatedAt}
+//     daily.{YYYY-MM-DD}  {correct, wrong}
+//     position, prefs, updatedAt, bulkAt
+//   users/{uid}/books/{book}/notes/{itemId}  {text, updatedAt}
+//
+// Only the owner can read or write. Rules cannot loop over a map, so a normal write may change at most ONE
+// entry per map and that entry is fully validated. Writes that change many entries at once (import from this
+// PC, restore from a backup, reset) must mark themselves with bulkAt == request.time; map sizes stay capped.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function bookOk(book) {
+      return book in ['vocab', 'grammar'];
+    }
+
+    function idOk(book, id) {
+      return id is string && ((book == 'vocab' && id.matches('[0-9]{4}')) || (book == 'grammar' && id.matches('G[0-9]{3}')));
+    }
+
+    function nat(v) {
+      return v is int && v >= 0 && v <= 1000000;
+    }
+
+    function optStamp(v) {
+      return v == null || (v is string && v.size() <= 40);
+    }
+
+    function statOk(s) {
+      return s is map && s.keys().hasOnly(['wrong', 'correct', 'attempts', 'streak', 'last', 'updatedAt', 'ivl', 'due'])
+        && nat(s.get('wrong', 0)) && nat(s.get('correct', 0)) && nat(s.get('attempts', 0)) && nat(s.get('streak', 0))
+        && s.get('attempts', 0) == s.get('wrong', 0) + s.get('correct', 0)
+        && s.get('last', null) in [null, 'correct', 'wrong']
+        && optStamp(s.get('updatedAt', null))
+        // spaced repetition: interval in days + next review date
+        && (s.get('ivl', null) == null || (s.ivl is int && s.ivl >= 0 && s.ivl <= 3650))
+        && (s.get('due', null) == null || (s.due is string && s.due.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')));
+    }
+
+    function markerOk(m) {
+      return m is map && m.keys().hasOnly(['color', 'createdAt']) && m.color in ['yellow', 'green', 'pink']
+        && optStamp(m.get('createdAt', null));
+    }
+
+    function bookmarkOk(b, book) {
+      return b is map && b.keys().hasOnly(['itemId', 'title', 'color', 'createdAt', 'updatedAt'])
+        && idOk(book, b.itemId) && b.title is string && b.title.size() > 0 && b.title.size() <= 60
+        && b.color in ['yellow', 'green', 'pink'] && optStamp(b.get('createdAt', null)) && optStamp(b.get('updatedAt', null));
+    }
+
+    function dayOk(d) {
+      return d is map && d.keys().hasOnly(['correct', 'wrong', 'sec']) && nat(d.get('correct', 0)) && nat(d.get('wrong', 0))
+        && nat(d.get('sec', 0)); // study time in seconds
+    }
+
+    function positionOk(p) {
+      return p == null || (p is map && p.keys().hasOnly(['spread', 'page', 'itemId', 'savedAt'])
+        && nat(p.get('spread', 0)) && (p.get('page', null) == null || nat(p.page))
+        && (p.get('itemId', null) == null || (p.itemId is string && p.itemId.size() <= 10))
+        && optStamp(p.get('savedAt', null)));
+    }
+
+    // document shape + size caps (always checked)
+    function shapeOk(d) {
+      return d.keys().hasOnly(['stats', 'markers', 'bookmarks', 'daily', 'position', 'prefs', 'op', 'updatedAt', 'bulkAt'])
+        && d.get('op', {}) is map && d.get('op', {}).size() <= 4
+        && d.get('stats', {}) is map && d.get('stats', {}).size() <= 1600
+        && d.get('markers', {}) is map && d.get('markers', {}).size() <= 1600
+        && d.get('bookmarks', {}) is map && d.get('bookmarks', {}).size() <= 300
+        && d.get('daily', {}) is map && d.get('daily', {}).size() <= 5000
+        && d.get('prefs', {}) is map && d.get('prefs', {}).size() <= 60
+        && positionOk(d.get('position', null))
+        && d.updatedAt == request.time;
+    }
+
+    // The one changed entry of each map is validated. Rules cannot pick "the" key out of a set, so every write
+    // names the entry it changes in `op` (op.stats = "0001", op.daily = "2026-09-28", …); the rules check that
+    // exactly that entry changed and validate it. Removing an entry is always fine.
+    function oneEntry(changedKeys, op, name, after) {
+      return changedKeys.size() == 0
+        || (changedKeys.size() == 1 && name in op && op[name] is string && changedKeys.hasOnly([op[name]]));
+    }
+
+    function entriesOk(book, after, before) {
+      let op = after.get('op', {});
+      let st = after.get('stats', {}).diff(before.get('stats', {})).affectedKeys();
+      let mk = after.get('markers', {}).diff(before.get('markers', {})).affectedKeys();
+      let bm = after.get('bookmarks', {}).diff(before.get('bookmarks', {})).affectedKeys();
+      let dy = after.get('daily', {}).diff(before.get('daily', {})).affectedKeys();
+      let bulk = after.get('bulkAt', null) == request.time;
+      return op is map
+        && (bulk || (
+          oneEntry(st, op, 'stats', after) && oneEntry(mk, op, 'markers', after)
+          && oneEntry(bm, op, 'bookmarks', after) && oneEntry(dy, op, 'daily', after)
+          && (st.size() == 0 || (idOk(book, op.stats)
+              && (!(op.stats in after.get('stats', {})) || statOk(after.stats[op.stats]))))
+          && (mk.size() == 0 || (idOk(book, op.markers)
+              && (!(op.markers in after.get('markers', {})) || markerOk(after.markers[op.markers]))))
+          && (bm.size() == 0 || (op.bookmarks.matches('[a-z0-9]{6,20}')
+              && (!(op.bookmarks in after.get('bookmarks', {})) || bookmarkOk(after.bookmarks[op.bookmarks], book))))
+          && (dy.size() == 0 || (op.daily.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+              && (!(op.daily in after.get('daily', {})) || dayOk(after.daily[op.daily]))))
+        ));
+    }
+
+    match /users/{uid}/books/{book} {
+      allow read: if isOwner(uid) && bookOk(book);
+      allow create: if isOwner(uid) && bookOk(book)
+        && shapeOk(request.resource.data) && entriesOk(book, request.resource.data, {});
+      allow update: if isOwner(uid) && bookOk(book)
+        && shapeOk(request.resource.data) && entriesOk(book, request.resource.data, resource.data);
+      allow delete: if false; // a reset clears the maps instead
+
+      match /notes/{itemId} {
+        allow read, delete: if isOwner(uid) && bookOk(book);
+        allow create, update: if isOwner(uid) && bookOk(book) && idOk(book, itemId)
+          && request.resource.data.keys().hasOnly(['text', 'updatedAt'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+          && request.resource.data.updatedAt == request.time;
+      }
+    }
+
+    // Life Dashboard (C:\Claudecode\life-dashboard) shares this project: one document per person,
+    // { json: the whole dashboard as a string, updatedAt: server time }. Owner only.
+    match /lifeDashboard/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['json', 'updatedAt'])
+        && request.resource.data.json is string
+        && request.resource.data.json.size() <= 900000
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // Umi (C:\Claudecode\seasonal-lake) shares this project: one document per person,
+    // { json: the whole Umi data as a string, updatedAt: server time }. Owner only.
+    match /umi/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['json', 'updatedAt'])
+        && request.resource.data.json is string
+        && request.resource.data.json.size() <= 900000
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

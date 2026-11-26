@@ -27,6 +27,7 @@
   <button class="nav" data-go="bed" title="終えたタスク"><svg viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20"/></svg>湖底</button>
   <button class="nav" disabled title="集中タイマー（準備中）"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg>ダイブ</button>
   <div class="grow"></div>
+  <div class="account" id="account"></div>
   <button class="nav" id="envNav"><svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg><span>湖のようす</span><small id="envSmall" hidden></small></button>
 </nav>
 
@@ -75,7 +76,8 @@
 <div class="pop glass" id="envMenu" style="left:240px;bottom:24px"></div>
 <div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastUndo">元に戻す</button></div>
 
-<script src="env.js?v=10"></script>
-<script type="module" src="home.js?v=10"></script>
+<script src="env.js?v=11"></script>
+<script src="firebase-config.js?v=11"></script>
+<script type="module" src="home.js?v=11"></script>
 </body>
 </html>

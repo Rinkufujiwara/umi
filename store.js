@@ -1,5 +1,5 @@
 // タスクの保存と計算（一覧画面 list.html と同じ保存場所 umi.v1 を使う）
-import { ymd } from './parse.js?v=10';
+import { ymd } from './parse.js?v=11';
 
 export const KEY = 'umi.v1';
 export const COLORS = ['#2f6f8f', '#6a5acd', '#c0812c', '#3c8d5a', '#b4566e', '#4f7cc4', '#8a7a3c', '#3f8f8b'];
@@ -44,8 +44,18 @@ function sample() {
 export function load() {
   let S = null;
   try { S = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (_) {}
+  return normalize(S);
+}
+export function fromJson(json) {
+  let S = null;
+  try { S = JSON.parse(json || 'null'); } catch (_) {}
+  return normalize(S);
+}
+function normalize(S) {
   if (!S || !Array.isArray(S.tasks)) S = sample();
+  if (!Array.isArray(S.areas)) S.areas = [];
   S.settings = { budget: 300, season: 'auto', calm: false, sound: true, ...(S.settings || {}) };
+  for (const t of S.tasks) if (t.weight && !t.w) { t.w = { ...WEIGHT_IP[t.weight] }; delete t.weight; } // 前の3段階を I/P に
   return S;
 }
 export const save = S => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {} };
@@ -75,48 +85,113 @@ export function dueLabel(t) {
 }
 export const estLabel = m => !m ? '' : m < 60 ? `${m}分` : (m % 60 ? `${Math.floor(m / 60)}時間${m % 60}分` : `${m / 60}時間`);
 
-// 今やる順：遅れ > 必須 > 今日まで > 時刻が近い > 短い
-export function rank(list) {
-  const score = t => {
-    let s = 0; const dl = t.due ? dayDiff(t.due, todayStr()) : 9;
-    if (dl < 0) s += 100 + Math.min(30, -dl * 5);
-    if (t.kind === 'must') s += 50;
-    if (dl === 0) s += 20; else if (dl === 1) s += 8;
-    if (t.time && dl === 0) {
-      const [h, m] = t.time.split(':').map(Number);
-      const left = h * 60 + m - (new Date().getHours() * 60 + new Date().getMinutes());
-      if (left < 180) s += 30 - Math.max(0, left) / 6;
-    }
-    if (t.est) s += Math.max(0, 8 - t.est / 15);
-    s += ((t.weight || 2) - 2) * 14; // 重いほど先に
-    return s - t.ord * 0.01;
-  };
-  return list.slice().sort((a, b) => score(b) - score(a));
+// ---------------------------------------------------------------- 重み付け（前の Umi の式をそのまま使う）
+// AI（潮見）が判断するのは4つだけ：I 価値・P 痛手・E 手間・D 待っている人（1〜10）。
+// それ以外（余裕・急ぎ・重さ・順番・知らせ）は、ここで毎回計算する。
+//   W = ( I^1.2 × aging + P^1.3 ) × D' ÷ h^0.6 × U(s)
+//   重さ V = ( I^1.2 × aging + P^1.3 ) × D'      … 横（右ほど重い）
+//   急ぎ U(s) = (1 + 2 ÷ (max(0, s) + 0.5))^1.5 … 縦（手前ほど急ぐ）
+//   手間 h（時間）                                 … ブイの大きさ
+export const K = { alpha: 1.2, beta: 1.3, gamma: 0.6, delta: 1.5, lambda: 2.0, k: 0.15, agingCap: 3 };
+export const EFFORT_HOURS = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 56, 80];
+export const EFFORT_LABEL = ['15分', '30分', '1時間', '2時間', '半日', '1日', '2日', '4日', '1週間', '2週間以上'];
+const SHARK_W = 45, SHARK_MAX = 2;
+const V_MAX = (Math.pow(10, K.alpha) + Math.pow(10, K.beta)) * 2;           // I=P=D=10 のとき
+const U0 = Math.pow(1 + K.lambda / 0.5, K.delta);                            // 余裕 0 日の急ぎ（≈ 11.2）
+const clamp10 = v => Math.max(1, Math.min(10, Math.round(Number(v) || 1)));
+const has = (s, words) => words.some(w => s.includes(w));
+
+// AI が答えるまで（・答えられないとき）の目安：タイトルの言葉から推測する
+export function ruleGuess(t, areaName = '') {
+  const s = `${t.title || ''} ${t.notes || ''} ${areaName}`;
+  let e = 4;
+  if (has(s, ['メール', '返信', '連絡', '送る', '確認', '予約', '払う', '支払', '振り込', '申し込'])) e = 2;
+  else if (has(s, ['調べ', '決め', '考え', '読む'])) e = 3;
+  else if (has(s, ['動画', 'アプリ', 'サイト', '開発', '構築', '実装', '通しで'])) e = 7;
+  else if (has(s, ['資料', 'スライド', '発表', 'レジュメ', 'エッセイ', 'レポート', '論文', '台本'])) e = 6;
+  else if (has(s, ['作る', '書く', '準備', 'まとめ', '直す'])) e = 5;
+  let p = 2;
+  if (has(s, ['提出', '締切', '申請', '支払', '払う', '振り込', '予約', '手続', '単位', '試験', 'チケット', 'フライト', '期限', '家賃'])) p = 7;
+  else if (has(s, ['返信', '連絡', '約束', '報告'])) p = 5;
+  if (t.due) p = Math.min(10, p + 2);
+  let i = 4;
+  if (has(s, ['ポートフォリオ', '就活', 'インターン', 'ハッカソン', 'ガクチカ', '練習', '学習', '勉強', '作品', 'WD'])) i = 6;
+  let d = 1;
+  if (has(s, ['提出', '発表', '送る', '返信', '共有', 'チーム', '運営', 'ゼミ', 'さん', '先生', '報告'])) d = 6;
+  return { i, p, e, d };
 }
 
-// 時間の余裕（日）＝ 期限までの日数 − 作業にかかる日数（見積もり ÷ 1日に使える時間）。期限なしは null
-export function slackDays(t, budget = 300) {
-  let left;
+// 4つの値：あなたの指定 > 潮見（AI） > 目安
+export function values(t, areaName = '') {
+  const r = ruleGuess(t, areaName);
+  const ai = t.ai && t.ai.title === t.title ? t.ai : null;
+  const w = t.w || {};
+  const pick = k => (w[k] != null ? { v: clamp10(w[k]), src: 'you' } : ai && ai[k] != null ? { v: clamp10(ai[k]), src: 'ai' } : { v: r[k], src: 'rule' });
+  const p = pick('p');
+  // 必須（やらないと実害・取り返しがつかない）か自主（将来のため）か：あなた > 潮見 > P ≥ 6
+  const must = t.kind ? { v: t.kind === 'must', src: 'you' } : ai && typeof ai.m === 'boolean' ? { v: ai.m, src: 'ai' } : { v: p.v >= 6, src: p.src };
+  return { i: pick('i'), p, e: pick('e'), d: pick('d'), must, why: ai ? ai.why || '' : '' };
+}
+export const kindOf = (t, areaName) => (values(t, areaName).must.v ? 'must' : 'self');
+
+// 期限までの日数（時刻があればその時刻まで、なければその日の終わりまで）。期限なしは null
+function daysLeft(t) {
   if (t.due) {
-    left = dayDiff(t.due, todayStr());
+    let left = dayDiff(t.due, todayStr());
     if (t.time) { const [h, m] = t.time.split(':').map(Number); left += (h * 60 + m) / 1440; } else left += 1;
-    left -= (new Date().getHours() * 60 + new Date().getMinutes()) / 1440;
-  } else if (t.pin === 'surface') left = 0.6;
-  else if (t.pin === 'shallows') left = 4;
-  else return null;
-  return left - (t.est || 30) / budget;
+    return left - (new Date().getHours() * 60 + new Date().getMinutes()) / 1440;
+  }
+  if (t.pin === 'surface') return 0.6;
+  if (t.pin === 'shallows') return 4;
+  return null;
 }
-// 置き場所：u＝重さ（右ほど重い）、v＝余裕（奥ほど余裕がある）
-export function placeOf(t, budget = 300) {
-  const w = t.weight || 2;
-  const ageDays = (Date.now() - (t.createdAt || Date.now())) / 86400e3;
-  const aging = t.kind === 'self' ? Math.min(0.15, ageDays / 60) : 0; // 自主は放っておくと少しずつ重くなる
-  const u = Math.min(1, Math.max(0, (w - 1) / 2 * 0.82 + (t.kind === 'must' ? 0.12 : 0) + aging));
-  const s = slackDays(t, budget);
-  const v = s === null ? 0.92 : s <= 0 ? 0 : Math.min(0.85, Math.log1p(s) / Math.log1p(45) * 0.85);
-  return { u, v };
+
+export function compute(t, budget = 300, areaName = '') {
+  const v = values(t, areaName);
+  const I = v.i.v, P = v.p.v, E = v.e.v, D = v.d.v;
+  const hours = t.est ? t.est / 60 : EFFORT_HOURS[E - 1];       // 見積もりがあればそれを使う
+  const workHours = Math.max(0.5, budget / 60);                    // 1日に使える時間（設定）
+  const T = daysLeft(t);
+  const slack = T == null ? null : T - hours / workHours;
+  const touched = t.touchedAt || t.createdAt || Date.now();
+  const A = Math.max(0, (Date.now() - touched) / 86400e3);        // 触っていない日数
+  const category = v.must.v ? 'MUST' : I >= 5 ? 'SHOULD' : 'NORMAL';
+  const aging = category === 'SHOULD' ? Math.min(K.agingCap, 1 + K.k * A) : 1;
+  const U = slack == null ? 1 : Math.pow(1 + K.lambda / (Math.max(0, slack) + 0.5), K.delta);
+  const dep = 1 + (D - 1) / 9;
+  const V = (Math.pow(I, K.alpha) * aging + Math.pow(P, K.beta)) * dep;
+  let W = V / Math.pow(hours, K.gamma) * U;
+  if (t.pin === 'surface') W *= 3; // 手で「今日」にしたものは、本当の緊急以外より先
+  return { W, V, U, I, P, E, D, hours, slack, aging, category, must: v.must.v, src: { i: v.i.src, p: v.p.src, e: v.e.src, d: v.d.src, m: v.must.src }, why: v.why,
+    evaluated: !!(t.ai && t.ai.title === t.title) };
 }
+
+// 置き場所：u＝重さ（0 左 → 1 右）、v＝急ぎ（0 手前 → 1 奥）、size＝手間（ブイの大きさの倍率）
+export function placeOf(t, budget = 300, areaName = '') {
+  const c = compute(t, budget, areaName);
+  const u = Math.min(1, Math.max(0, Math.log(1 + c.V) / Math.log(1 + V_MAX)));
+  const v = c.slack == null ? 0.95 : Math.min(0.93, Math.max(0, 1 - Math.log(c.U) / Math.log(U0)));
+  const size = 0.8 + 0.5 * Math.min(1, Math.max(0, Math.log(c.hours / 0.25) / Math.log(80 / 0.25)));
+  return { u, v, size };
+}
+
+// 今やる順：W の大きい順
+export function rank(list, budget = 300, areaOf = () => '') {
+  return list.map(t => ({ t, w: compute(t, budget, areaOf(t)).W })).sort((a, b) => b.w - a.w || a.t.ord - b.t.ord).map(x => x.t);
+}
+// サメ（背びれ）：必須で W ≥ 45 のもの、重い順に最大2件
+export function sharkIds(list, budget = 300, areaOf = () => '') {
+  return list.map(t => ({ t, c: compute(t, budget, areaOf(t)) }))
+    .filter(x => x.c.must && x.c.W >= SHARK_W).sort((a, b) => b.c.W - a.c.W).slice(0, SHARK_MAX).map(x => x.t.id);
+}
+
+// 重さの3段階（手で直すとき）：I と P を上書きする
 export const WEIGHT = { 1: '軽い', 2: 'ふつう', 3: '重い' };
+export const WEIGHT_IP = { 1: { i: 2, p: 2 }, 2: { i: 5, p: 4 }, 3: { i: 8, p: 8 } };
+export function weightLevel(t, budget, areaName) {
+  const { u } = placeOf(t, budget, areaName);
+  return u < 0.5 ? 1 : u < 0.72 ? 2 : 3;
+}
 
 export function nextDue(t) {
   const base = new Date((t.due || todayStr()) + 'T00:00');

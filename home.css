@@ -298,3 +298,13 @@ html[data-night="1"] .side { background: rgba(18,38,48,.3); }
 .bedhint .arrow { font-size: 16px; opacity: .85; animation: bob 2.4s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(3px); } }
 @media (prefers-reduced-motion: reduce) { .bedhint .arrow { animation: none; } }
+
+/* ログイン */
+.account { padding: 8px 10px 10px; border-top: 1px solid rgba(255,255,255,.35); margin: 6px 2px 4px; }
+.account .acct { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.account .acct b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 0 8px var(--halo); }
+.account small { display: block; margin-top: 4px; font-size: 11px; color: var(--sub); text-shadow: 0 0 8px var(--halo); }
+.linkbtn { border: 0; background: none; color: var(--sub); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; padding: 0; white-space: nowrap; }
+.gbtn { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; background: rgba(255,255,255,.85); font-size: 13px; padding: 8px 10px; }
+.gbtn svg { width: 16px; height: 16px; }
+.pop .why { margin-top: 8px; font-size: 11px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
