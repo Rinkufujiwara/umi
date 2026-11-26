@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Umi</title>
-<link rel="stylesheet" href="home.css?v=21b">
+<link rel="stylesheet" href="home.css?v=22a">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
@@ -88,9 +88,9 @@
     <div class="addhead"><b>ダイブ</b><span>ひとつのタスクに潜る</span></div>
     <label class="dlab">潜る先<select id="dTask"></select></label>
     <div class="dlab">時間</div>
-    <div class="dmodes" id="dModes"><button type="button" data-m="25">25分</button><button type="button" data-m="50">50分</button><button type="button" data-m="0">決めない</button></div>
+    <div class="seg dmodes" data-seg="dive" id="dModes"><button type="button" data-m="25">25分</button><button type="button" data-m="50">50分</button><button type="button" data-m="0">決めない</button></div>
     <p class="dnote" id="dNote"></p>
-    <div class="go"><button class="btn" id="dCancel" type="button">やめる</button><button class="btn pri" id="dStart" type="button">潜る</button></div>
+    <div class="go"><button class="btn quiet" id="dCancel" type="button">やめる</button><button class="btn pri" id="dStart" type="button">潜る</button></div>
   </div>
   <div class="dhud" id="dHud">
     <div class="dtask" id="dTaskName"></div>
@@ -104,13 +104,13 @@
     <div class="addhead"><b>浮上しました</b><span id="dSummary"></span></div>
     <div class="breath"><div class="ring"><i></i></div><div><b id="dRestTime">減圧 5:00</b><p id="dBreathTxt">波に合わせて、ゆっくり吸って、吐いて</p></div></div>
     <div id="dBubbles"></div>
-    <div class="go"><button class="btn pri" id="dSink" type="button">沈める（終わった）</button><button class="btn" id="dAgain" type="button">もう一度潜る</button><button class="btn" id="dHome" type="button">水面へ戻る</button></div>
+    <div class="go"><button class="btn pri" id="dSink" type="button">沈める（終わった）</button><button class="btn" id="dAgain" type="button">もう一度潜る</button><button class="btn quiet" id="dHome" type="button">水面へ戻る</button></div>
   </div>
 </div>
 <div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastUndo">元に戻す</button></div>
 
-<script src="env.js?v=21"></script>
-<script src="firebase-config.js?v=21"></script>
-<script type="module" src="home.js?v=21"></script>
+<script src="env.js?v=22"></script>
+<script src="firebase-config.js?v=22"></script>
+<script type="module" src="home.js?v=22"></script>
 </body>
 </html>

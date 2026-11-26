@@ -492,3 +492,104 @@ html[data-night="1"] #dBubbles .bub { border-color: rgba(255,255,255,.16); }
 .row .panel:not(.focus) .card { display: flex; flex-direction: column; justify-content: center; }
 @media (max-width: 820px) { .row .panel:not(.focus) { display: none; } }
 #envMenu .go { flex-wrap: wrap; }
+
+/* ================================================================
+   ボタンと出方の決まり（docs/ui-review/README.md）
+   役：主（濃い色・1画面に1つ）／ふつう（白い面＋線）／静か（文字だけ）／危ない（静か＋赤）
+   選ぶもの：切り替え（.seg、白い札がすべる）　オン／オフ：aria-pressed
+   出方：開く 220ms ease-out で下から浮かぶ、閉じる 160ms ease-in で沈む
+   ================================================================ */
+:root { --b-h: 36px; --b-r: 10px; --pri: #2f6670; --pri-h: #285962;
+  --ease-out: cubic-bezier(.2,.8,.2,1); --ease-in: cubic-bezier(.4,0,1,1); --ease-seg: cubic-bezier(.4,0,.2,1);
+  --t-in: 220ms; --t-out: 160ms; --t-seg: 300ms; }
+.btn { height: var(--b-h); padding: 0 14px; border-radius: var(--b-r); font-size: 13px; font-weight: 500; line-height: 1; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; text-decoration: none;
+  border: 1px solid rgba(22,48,58,.12); background: rgba(255,255,255,.85); color: var(--ink); box-shadow: none;
+  transition: background .15s, border-color .15s, color .15s, transform .12s var(--ease-out); }
+.btn:hover { background: #fff; border-color: rgba(22,48,58,.22); }
+.btn.pri, .addbtn { background: var(--pri); border: 1px solid transparent; color: #fff; font-weight: 600; box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, 0 2px 6px rgba(20,60,70,.22); }
+.btn.pri:hover, .addbtn:hover { background: var(--pri-h); }
+.btn.quiet { background: none; border-color: transparent; color: #2f5560; padding: 0 10px; }
+.btn.quiet:hover { background: rgba(22,48,58,.07); }
+.btn.del { color: #b2402d; }
+.btn.del:hover { background: rgba(224,83,63,.09); }
+.btn[aria-pressed="true"] { background: #fff; border-color: rgba(47,102,112,.45); color: var(--pri); font-weight: 600; }
+.btn:disabled { opacity: .4; cursor: default; }
+.addbtn { border-radius: var(--b-r); transition: background .15s, transform .12s var(--ease-out); }
+.gbtn { width: 100%; background: #fff; }
+.btn:focus-visible, .seg button:focus-visible, .addbtn:focus-visible, .calm:focus-visible { outline: 2px solid #4f9aa2; outline-offset: 2px; }
+html[data-night="1"] .btn { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.16); color: #eaf6f6; }
+html[data-night="1"] .btn:hover { background: rgba(255,255,255,.2); }
+html[data-night="1"] .btn.pri { background: #4f8a90; border-color: transparent; color: #fff; }
+html[data-night="1"] .btn.quiet { background: none; border-color: transparent; color: #cfe6ea; }
+html[data-night="1"] .btn.quiet:hover { background: rgba(255,255,255,.1); }
+html[data-night="1"] .btn.del { color: #ffb3a6; }
+html[data-night="1"] .btn[aria-pressed="true"] { background: rgba(255,255,255,.9); color: #1d4a52; }
+html[data-night="1"] .gbtn { background: #fff; color: #16303a; }
+/* 押したとき：少しだけ縮む */
+.btn:active, .addbtn:active, .calm:active, .seg button:active, .side .nav:active, .mbar button:active, .card:active { transform: scale(.97); }
+
+/* 切り替え：灰色の溝の中を、白い札がすべる */
+.seg { position: relative; display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: var(--b-r); background: rgba(22,48,58,.08); max-width: 100%; box-sizing: border-box; }
+.seg button { position: relative; z-index: 1; height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: none; font-size: 13px; color: var(--sub); white-space: nowrap; cursor: pointer; transition: color .2s, background .15s, transform .12s var(--ease-out); }
+.seg button:hover { color: var(--ink); }
+.seg button.on { color: var(--ink); font-weight: 600; }
+.seg:not(.ready) button.on { background: #fff; box-shadow: 0 1px 3px rgba(20,50,60,.18); }
+.seg-ind { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(20,50,60,.18); pointer-events: none; opacity: 0;
+  transition: transform var(--t-seg) var(--ease-seg), width var(--t-seg) var(--ease-seg), height var(--t-seg) var(--ease-seg), opacity .15s; }
+.seg.plain button { color: var(--ink); }
+.seg.plain button:hover { background: rgba(255,255,255,.75); }
+html[data-night="1"] .seg { background: rgba(255,255,255,.1); }
+html[data-night="1"] .seg button { color: #b9d3d8; }
+html[data-night="1"] .seg button:hover, html[data-night="1"] .seg.plain button { color: #eaf6f6; }
+html[data-night="1"] .seg button.on { color: #16303a; }
+html[data-night="1"] .seg-ind, html[data-night="1"] .seg:not(.ready) button.on { background: rgba(255,255,255,.92); }
+html[data-night="1"] .seg.plain button:hover { background: rgba(255,255,255,.14); }
+/* ダイブの時間：幅いっぱいの切り替え */
+.seg.dmodes { display: flex; }
+.seg.dmodes button { flex: 1; height: 34px; font-size: 14px; border: 0; background: none; }
+.seg.dmodes button.on { background: none; color: var(--ink); }
+.seg.dmodes:not(.ready) button.on { background: #fff; }
+
+/* ポップアップ：重さと「遠くへ」を横に並べる */
+.pop { width: max-content; min-width: 300px; max-width: min(460px, calc(100vw - 24px)); }
+.pop .pair { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; }
+.pop .lbl { font-size: 11px; color: var(--sub); margin: 0 0 6px; }
+#pop .go { flex-wrap: wrap; gap: 4px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pop .go .btn { height: 34px; font-size: 13px; padding: 0 12px; }
+.pop .go .btn.quiet { padding: 0 8px; }
+.pop .go .del { margin-left: auto; background: none; }
+html[data-night="1"] #pop .go { border-top-color: rgba(255,255,255,.12); }
+.focus .go { gap: 4px; }
+
+/* ---- 出方：開くと下から浮かび、閉じると沈む ---- */
+.pop { display: block !important; visibility: hidden; opacity: 0; transform: translateY(8px) scale(.98); transform-origin: 50% 100%; pointer-events: none;
+  transition: opacity var(--t-out) var(--ease-in), transform var(--t-out) var(--ease-in), visibility 0s linear var(--t-out); }
+.pop.open { visibility: visible; opacity: 1; transform: none; pointer-events: auto;
+  transition: opacity var(--t-in) var(--ease-out), transform var(--t-in) var(--ease-out), visibility 0s; }
+#envMenu { transform-origin: 0 100%; }
+.addbox { transform: translateY(8px) scale(.98); transition: opacity var(--t-out) var(--ease-in), transform var(--t-out) var(--ease-in); }
+.addbox.open { transform: none; transition: opacity var(--t-in) var(--ease-out), transform var(--t-in) var(--ease-out); }
+.dsetup, .drest { transform: translate(-50%, calc(-50% + 8px)) scale(.98); transition: opacity var(--t-out) var(--ease-in), transform var(--t-out) var(--ease-in); }
+.dsetup.on, .drest.on { transform: translate(-50%, -50%); transition: opacity var(--t-in) var(--ease-out), transform var(--t-in) var(--ease-out); }
+.toast { transition: opacity .4s ease, transform .4s ease; }
+.scrim { transition: opacity var(--t-in) var(--ease-out); }
+/* キーボードで開いたときは動かさない */
+body.kbd-open .addbox, body.kbd-open .dsetup { transition: none !important; }
+/* 動きを減らす設定：透明度だけ */
+@media (prefers-reduced-motion: reduce) {
+  .pop, .addbox, .dsetup, .drest, .toast { transform: none !important; }
+  .dsetup, .drest { transform: translate(-50%, -50%) !important; }
+  .pop, .pop.open, .addbox, .addbox.open, .dsetup, .dsetup.on, .drest, .drest.on, .toast { transition: opacity 120ms linear, visibility 0s linear 120ms !important; }
+  .seg-ind { transition: none; }
+  .btn:active, .addbtn:active, .calm:active, .seg button:active, .card:active { transform: none; }
+}
+html[data-night="1"] .seg.dmodes button { background: none; border: 0; }
+
+/* カードの札は、文字の幅だけ */
+.card .badge { align-self: flex-start; }
+/* ポップアップと設定は、後ろの景色に負けない濃さに */
+#pop, #envMenu { background-color: rgba(244,249,250,.92); }
+html[data-night="1"] #pop, html[data-night="1"] #envMenu { background-color: rgba(26,50,60,.94); }
+#envMenu p { color: #3d5660 !important; }
+html[data-night="1"] #envMenu p { color: #b9d3d8 !important; }
