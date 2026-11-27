@@ -1,12 +1,12 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=46';
-import { parseQuick } from './parse.js?v=46';
-import * as St from './store.js?v=46';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=46';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=46';
-import { requestPlan } from './nagi.js?v=46';
+import { createHome } from './home-scene.js?v=47';
+import { parseQuick } from './parse.js?v=47';
+import * as St from './store.js?v=47';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=47';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=47';
+import { requestPlan } from './nagi.js?v=47';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -91,8 +91,9 @@ function render() {
   const weekAgo = Date.now() - 7 * 86400e3;
   const sunk = S.tasks.filter(t => t.done && t.doneAt > weekAgo).length;
   const t0 = new Date(); t0.setHours(0, 0, 0, 0);
-  const plan = L.filter(t => secOf(t) === 'surface').reduce((s, t) => s + (t.est || 0), 0)
-             + S.tasks.filter(t => t.done && t.doneAt >= +t0).reduce((s, t) => s + (t.est || 0), 0);
+  // today's load = what is still left today. Work you already sank does not make the lake stormy
+  const plan = L.filter(t => secOf(t) === 'surface').reduce((s, t) => s + (t.est || 0), 0);
+  const doneToday = S.tasks.filter(t => t.done && t.doneAt >= +t0).reduce((s, t) => s + (t.est || 0), 0);
   const B = S.settings.budget, over = plan > B;
   const late = L.filter(t => t.due && t.due < St.todayStr()).length;
   // greeting and one line
@@ -118,8 +119,8 @@ function render() {
   const KINDS = ['calm', 'ripple', 'waves', 'rough', 'storm'], lvl = KINDS.indexOf(kind);
   const zero = estLabel(0) || tr('est.m', { m: 0 });
   $('tide').className = `tide busy-${kind}` + (over ? ' over' : '');
-  $('tide').title = `${tr('busy.label')} ${Math.round(busy * 100)}% — ${tr('busy.reason', { a: Math.round(plan / B * 100), b: Math.round(week * 100), c: late, d: urgNotLate })}`;
-  $('tide').innerHTML = `<div class="tl"><span>${tr('busy.label')}</span> <b>${tr('weather.' + kind)}</b><span class="rest">${tr('tide')} ${estLabel(plan) || zero} ／ ${estLabel(B)}</span></div>`
+  $('tide').title = `${tr('busy.label')} ${Math.round(busy * 100)}% — ${tr('busy.reason', { a: Math.round(plan / B * 100), b: Math.round(week * 100), c: late, d: urgNotLate })} · ${tr('busy.done', { t: estLabel(doneToday) || estLabel(0) || '0' })}`;
+  $('tide').innerHTML = `<div class="tl"><span>${tr('busy.label')}</span> <b>${tr('weather.' + kind)}</b><span class="rest">${tr('tide.leftOf', { t: estLabel(plan) || zero, b: estLabel(B) })}</span></div>`
     + `<div class="meter" role="meter" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${lvl + 1}" aria-label="${esc(tr('busy.label'))}">${KINDS.map((k, i) => `<i class="${i <= lvl ? 'on' : ''}"></i>`).join('')}</div>`;
 
   // today's priorities (only three in Nagi mode)
