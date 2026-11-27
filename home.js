@@ -1,11 +1,12 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=42';
-import { parseQuick } from './parse.js?v=42';
-import * as St from './store.js?v=42';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=42';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=42';
+import { createHome } from './home-scene.js?v=43';
+import { parseQuick } from './parse.js?v=43';
+import * as St from './store.js?v=43';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=43';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=43';
+import { requestPlan } from './nagi.js?v=43';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -47,7 +48,29 @@ function urgent(t) {
   return false;
 }
 let lastKeep = null;
-function calmSet() { return new Set(rank(live().filter(t => secOf(t) === 'surface')).slice(0, 3).map(t => t.id)); }
+// Nagi mode keeps the three from Nagi's plan (docs/nagi-agent-design.md); until a plan arrives, or when it
+// does not fit the current tasks, the formula's top three (by W) are used.
+let nagiPlan = null, nagiBusy = false, nagiAsked = 0;
+function calmSet() {
+  const today = live().filter(t => secOf(t) === 'surface');
+  if (nagiPlan && Date.parse(nagiPlan.validUntil) > Date.now()) {
+    const ids = nagiPlan.keep.map(k => k.id).filter(id => today.some(t => t.id === id));
+    if (ids.length === Math.min(3, nagiPlan.keep.length) && ids.length) return new Set(ids);
+  }
+  return new Set(rank(today).slice(0, 3).map(t => t.id));
+}
+async function refreshPlan(force) {
+  if (!S.settings.calm || nagiBusy) return;
+  if (!force && nagiPlan && Date.parse(nagiPlan.validUntil) > Date.now() && Date.now() - nagiAsked < 10 * 60e3) return;
+  nagiBusy = true; nagiAsked = Date.now();
+  try {
+    const token = Cloud.user ? await Cloud.token() : null;
+    const { plan } = await requestPlan(S, { lang: getLang(), areaOf: areaName, token, enabled: S.settings.nagiAgent !== false });
+    nagiPlan = plan; render();
+  } finally { nagiBusy = false; }
+}
+const nagiWhy = id => (S.settings.calm && nagiPlan ? nagiPlan.keep.find(k => k.id === id) : null);
+const nagiSuggest = id => (S.settings.calm && nagiPlan ? nagiPlan.suggest.filter(x => x.id === id) : []);
 
 function render() {
   const L = live(), calm = S.settings.calm, keep = calm ? calmSet() : null;
@@ -56,6 +79,7 @@ function render() {
   // While in Nagi mode, if the three kept tasks change, reframe the camera on their new positions
   const keepKey = calm ? [...keep].sort().join() : '';
   if (calm && lastKeep !== null && keepKey !== lastKeep) frameHome(1.8, 1400);
+  if (calm) queueMicrotask(() => refreshPlan(false));
   lastKeep = keepKey;
   sharkSet = new Set(St.sharkIds(L.filter(t => !calm || keep.has(t.id)), S.settings.budget, areaName));
   home.setAlerts([...sharkSet]);
@@ -76,7 +100,8 @@ function render() {
   const hello = tr(hr < 4 ? 'hello.night' : hr < 11 ? 'hello.morning' : hr < 18 ? 'hello.day' : 'hello.night');
   const urg = L.filter(urgent).length, today = cnt('surface');
   $('hello').textContent = hello;
-  $('summary').innerHTML = `${esc(mdw(d))}${urg ? `　<button class="late linkish" data-go="map" title="${esc(tr('urgent.title'))}">${esc(tr('urgent.n', { n: urg }))}</button>` : ''}`;
+  const nagiMsg = calm && nagiPlan && nagiPlan.message ? `<span class="nagimsg">${esc(nagiPlan.message)}</span>` : '';
+  $('summary').innerHTML = nagiMsg || `${esc(mdw(d))}${urg ? `　<button class="late linkish" data-go="map" title="${esc(tr('urgent.title'))}">${esc(tr('urgent.n', { n: urg }))}</button>` : ''}`;
   // counts live in the Overview (view from the sky)
   $('mapSub').innerHTML = (calm ? `<span class="calmnote">${tr('map.calmnote')}</span>　` : '') + tr('map.sub', { n: L.length, today, urg: urg ? tr('map.urg', { n: urg }) : '',
     week: cnt('shallows'), some: cnt('depths'), late: late ? tr('map.late', { n: late }) : '', sunk });
@@ -269,6 +294,8 @@ function openPop(id, x, y) {
     <div class="m"><span>${SEC_NAME[sec]}</span>${dl ? `<span class="${dl.late ? 'late' : ''}">${esc(dl.text)}</span>` : ''}${t.est ? `<span>${tr('about', { t: estLabel(t.est) })}</span>` : ''}
     <span>${tr(c.must ? 'kind.must' : 'kind.self')}</span><span>${tr('pop.weightIs', { w: St.WEIGHT[lvl] })}</span>${a ? `<span>${esc(a.name)}</span>` : ''}${t.repeat ? `<span>↻ ${St.REPEAT[t.repeat]}</span>` : ''}${(t.diveMin || t.dives?.length) ? `<span>${tr('pop.dove', { t: estLabel(t.diveMin || t.dives.reduce((s, d) => s + d.min, 0)) })}</span>` : ''}</div>
     ${t.notes ? `<div class="m">${esc(t.notes)}</div>` : ''}
+    ${nagiWhy(t.id) ? `<div class="why nagiwhy"><b>${tr(nagiPlan.source === 'agent' ? 'nagi.label' : 'nagi.formula')}</b>　${esc(nagiWhy(t.id).why)}</div>` : ''}
+    ${nagiSuggest(t.id).length ? `<div class="nagisug">${nagiSuggest(t.id).map(x => `<button class="btn" data-nagi="${x.action}" data-min="${x.minutes || ''}" title="${esc(x.why)}">${esc(tr('nagi.s.' + x.action, { m: x.minutes || 25 }))}</button>`).join('')}</div>` : ''}
     <div class="why" title="${esc(tr('pop.whyTitle', { i: c.I, p: c.P, e: c.E, d: c.D }))}">${esc(tr('pop.why', { src: tr(c.evaluated ? 'pop.shiomi' : 'pop.guess'), i: c.I, p: c.P, d: c.D }))}${c.why ? `　${esc(c.why)}` : ''}</div>
     <div class="pair"><div><div class="lbl">${tr('pop.weight')}</div><div class="seg" data-seg="weight">${[1, 2, 3].map(w => `<button class="${lvl === w ? 'on' : ''}" data-weight="${w}">${St.WEIGHT[w]}</button>`).join('')}</div></div>
       <div><div class="lbl">${tr('pop.later')}</div><div class="seg plain">${[[1, tr('pop.plus1d')], [3, tr('pop.plus3d')], [7, tr('pop.plus1w')]].map(([n, l]) => `<button data-post="${n}">${l}</button>`).join('')}</div></div></div>
@@ -291,6 +318,16 @@ document.addEventListener('click', e => {
   const po = e.target.closest('[data-post]'); if (po && popId) { postpone(popId, +po.dataset.post); return; }
   const li = e.target.closest('[data-lighter]'); if (li && popId) { lighter(popId); return; }
   const rs = e.target.closest('[data-raise]'); if (rs) { raise(rs.dataset.raise); return; }
+  // a Nagi suggestion runs only when you tap it, through the same actions as the buttons
+  const ng = e.target.closest('[data-nagi]');
+  if (ng && popId) {
+    const id = popId, a = ng.dataset.nagi;
+    if (nagiPlan) nagiPlan.suggest = nagiPlan.suggest.filter(x => !(x.id === id && x.action === a));
+    if (a === 'tomorrow' || a === 'later') postpone(id, a === 'later' ? 3 : 1);
+    else if (a === 'lighter') lighter(id);
+    else if (a === 'dive') { closePop(); openDive(id); setMode(+ng.dataset.min || 25); }
+    return;
+  }
   const wt = e.target.closest('[data-weight]');
   if (wt && popId) { const t = S.tasks.find(x => x.id === popId); t.w = { ...(t.w || {}), ...St.WEIGHT_IP[+wt.dataset.weight] }; t.touchedAt = Date.now(); delete t.sample; save(); const id = popId, r = $('pop').getBoundingClientRect(); render(); openPop(id, r.left + r.width / 2, r.bottom + 24); return; }
   const op = e.target.closest('[data-open]');
@@ -344,7 +381,8 @@ function frameHome(dur, delay = 0) {
   }, delay);
 }
 function toggleCalm() {
-  S.settings.calm = !S.settings.calm; home.setCalm(S.settings.calm); save(); render();
+  S.settings.calm = !S.settings.calm; home.setCalm(S.settings.calm); if (!S.settings.calm) nagiPlan = null; save(); render();
+  if (S.settings.calm) refreshPlan(true);
   if (station === 'home') frameHome(S.settings.calm ? 2.6 : 2.2, S.settings.calm ? 700 : 300);
   // In the Overview (from the sky), adjust the height to what remains once the sinking is done
   if (station === 'map') setTimeout(() => { if (station === 'map' && !moving) { moving = true; home.flyTo(home.stationFor('map'), 2).then(() => { moving = false; }); } }, S.settings.calm ? 1900 : 400);
@@ -413,6 +451,7 @@ function renderEnv() {
     <p ${LBL}>${tr('env.weather')}</p><div class="seg" data-seg="weather" style="margin:0 0 12px">${WEATHERS.map(k => `<button class="${Env.weatherMode === k ? 'on' : ''}" data-weather="${k}">${tr('weather.' + k)}</button>`).join('')}</div>
     <p ${LBL}>${tr('env.hours')}</p><div class="seg" data-seg="hours" style="margin:0 0 12px">${[2, 3, 4, 5, 6, 8].map(h => `<button class="${S.settings.budget === h * 60 ? 'on' : ''}" data-hours="${h}">${tr('env.hoursN', { h })}</button>`).join('')}</div>
     <p ${LBL}>${tr('env.calm')}</p><div class="go" style="margin:0 0 12px"><button class="calm small" data-calm aria-pressed="${!!S.settings.calm}"><span class="sw"><i></i></span><b>${tr('calm')}</b></button></div>
+    <p ${LBL}>${tr('env.agent')}</p><div class="go" style="margin:0 0 12px"><button class="btn" aria-pressed="${S.settings.nagiAgent !== false}" data-agent="1">${tr('env.agentBtn', { v: tr(S.settings.nagiAgent !== false ? 'env.on' : 'env.off') })}</button></div>
     <div class="menvacct" id="account2"></div>
     <p ${LBL}>${tr('env.sound')}</p><div class="go" style="margin:0"><button class="btn" aria-pressed="${!!S.settings.sound}" data-sound="1">${tr('env.soundBtn', { v: tr(S.settings.sound ? 'env.on' : 'env.off') })}</button></div>
     <p style="margin:10px 0 0;font-size:11px;color:var(--faint)">${esc(Env.statusText())}${Env.auto.reason ? `<br>${esc(Env.auto.reason)}` : ''}</p>`;
@@ -428,6 +467,7 @@ $('envMenu').addEventListener('click', e => {
   if (s) { S.settings.season = s.dataset.season; save(); renderEnv(); }
   if (w) { S.settings.weather = w.dataset.weather; save(); Env.setWeatherMode(w.dataset.weather); }
   if (so) { S.settings.sound = !S.settings.sound; save(); renderEnv(); }
+  if (e.target.closest('[data-agent]')) { S.settings.nagiAgent = S.settings.nagiAgent === false; nagiPlan = null; save(); renderEnv(); refreshPlan(true); }
 });
 
 // ---------------------------------------------------------------- camera moves (wheel, swipe, arrow keys)

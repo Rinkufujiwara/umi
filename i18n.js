@@ -20,6 +20,8 @@ const en = {
   'empty.others': 'Nothing else.', 'empty.focus': 'Nothing urgent.',
   'btn.sink': 'Sink', 'btn.dive': 'Dive', 'btn.later': 'Tomorrow',
   'kind.must': 'Must', 'kind.self': 'Own', 'tag.urgent': 'urgent',
+  'nagi.label': 'Nagi', 'nagi.formula': 'Nagi (formula)', 'nagi.s.tomorrow': 'Move to tomorrow', 'nagi.s.lighter': 'Make it lighter', 'nagi.s.later': 'In 3 days', 'nagi.s.dive': 'Dive {m} min',
+  'env.agent': "Nagi planning (uses Shiomi's judgments and your time)", 'env.agentBtn': 'Plan with the Nagi agent: {v}',
   'nodue': 'No due date', 'about': '~{t}',
   // lakebed
   'bed': 'Lakebed', 'bed.count': 'Lakebed  {n}', 'bed.hint.title': 'To the lakebed (or scroll down)',
@@ -107,6 +109,8 @@ const ja = {
   'empty.others': 'ほかにはありません', 'empty.focus': '急ぐものはありません。',
   'btn.sink': '沈める', 'btn.dive': '潜る', 'btn.later': '明日へ',
   'kind.must': '必須', 'kind.self': '自主', 'tag.urgent': '急ぎ',
+  'nagi.label': '凪', 'nagi.formula': '凪（式）', 'nagi.s.tomorrow': '明日へ回す', 'nagi.s.lighter': '軽くする', 'nagi.s.later': '3日後へ', 'nagi.s.dive': '{m}分潜る',
+  'env.agent': '凪の計画（潮見の判定と、使える時間を見て決める）', 'env.agentBtn': '凪エージェントで計画：{v}',
   'nodue': '期限なし', 'about': '約{t}',
   'bed': '湖底', 'bed.count': '湖底　{n}', 'bed.hint.title': '湖底へ（下へスクロールでも）',
   'bed.title': '湖底　これまでに沈めた {n}件', 'bed.sub': '今日 {a}件・この7日 {b}件　／　上へスクロールで水面へ',

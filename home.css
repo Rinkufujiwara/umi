@@ -633,3 +633,10 @@ html[data-night="1"] .panel .fold:hover { background: rgba(255,255,255,.1); }
 :root { --z: .75; }
 @media (max-width: 820px) { :root { --z: 1; } }
 .side, .top, .bedhint, .ticks, .axis, .mapview, .bedview, #pop, #envMenu, .addbox, .scrim, .mbar, .dive, .toast, #tags { zoom: var(--z); }
+
+/* Nagi plan: the reason a buoy stays, the day's message, and suggestions you can tap */
+.pop .nagiwhy { color: var(--ink); white-space: normal; }
+.pop .nagiwhy b { color: #2f6f78; font-weight: 600; }
+html[data-night="1"] .pop .nagiwhy b { color: #9fd6dc; }
+.pop .nagisug { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.greet .nagimsg { color: var(--ink); font-weight: 500; }
