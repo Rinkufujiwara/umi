@@ -660,3 +660,8 @@ html[data-night="1"] .tide .meter i { background: rgba(255,255,255,.14); }
 html[data-night="1"] .tide .meter i.on:nth-child(1) { background: #8cc7c4; }
 html[data-night="1"] .tide .meter i.on:nth-child(2) { background: #6aa9ad; }
 html[data-night="1"] .tide .meter i.on:nth-child(3) { background: #5fa3ad; }
+
+/* while Nagi is choosing: a quiet pulse on the greeting line */
+.greet .nagimsg.thinking { color: var(--sub); animation: nagiThink 1.6s ease-in-out infinite; }
+@keyframes nagiThink { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .greet .nagimsg.thinking { animation: none; } }

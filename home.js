@@ -1,12 +1,12 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=48';
-import { parseQuick } from './parse.js?v=48';
-import * as St from './store.js?v=48';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=48';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=48';
-import { requestPlan } from './nagi.js?v=48';
+import { createHome } from './home-scene.js?v=50';
+import { parseQuick } from './parse.js?v=50';
+import * as St from './store.js?v=50';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=50';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=50';
+import { requestPlan } from './nagi.js?v=50';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -48,40 +48,56 @@ function urgent(t) {
   return false;
 }
 let lastKeep = null;
-// Nagi mode keeps the three from Nagi's plan (docs/nagi-agent-design.md); until a plan arrives, or when it
-// does not fit the current tasks, the formula's top three (by W) are used.
-let nagiPlan = null, nagiBusy = false, nagiAsked = 0;
+// Nagi mode keeps what the Nagi agent chooses (docs/nagi-agent-design.md). Turning it on waits for the agent:
+// every buoy stays afloat and the greeting line says Nagi is choosing. The formula's top three (by W) are used only
+// when the agent cannot answer: signed out, switched off in Settings, an error, or no answer within the time limit.
+// A plan is remembered (localStorage) until it expires, so reopening the page does not wait again.
+const PLAN_KEY = 'umi.nagiPlan';
+let nagiPlan = null, nagiBusy = false, nagiAsked = 0, nagiWaiting = false;
+try { const c = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); if (c && Date.parse(c.validUntil) > Date.now()) nagiPlan = c; } catch (_) {}
+const planValid = () => nagiPlan && Date.parse(nagiPlan.validUntil) > Date.now();
 function calmSet() {
   const today = live().filter(t => secOf(t) === 'surface');
-  if (nagiPlan && Date.parse(nagiPlan.validUntil) > Date.now()) {
+  if (planValid()) {
     const ids = nagiPlan.keep.map(k => k.id).filter(id => today.some(t => t.id === id));
     if (ids.length === Math.min(3, nagiPlan.keep.length) && ids.length) return new Set(ids);
   }
+  if (nagiWaiting) return null;          // still choosing: nothing sinks yet
   return new Set(rank(today).slice(0, 3).map(t => t.id));
 }
+// wait (briefly) for the sign-in state, so a page that is still signing in is not sent to the formula
+let cloudSettled = false, cloudWaiters = [];
+const whenCloudSettled = () => cloudSettled ? Promise.resolve() : new Promise(r => { cloudWaiters.push(r); setTimeout(r, 5000); });
 async function refreshPlan(force) {
   if (!S.settings.calm || nagiBusy) return;
-  if (!force && nagiPlan && Date.parse(nagiPlan.validUntil) > Date.now() && Date.now() - nagiAsked < 10 * 60e3) return;
+  if (!force && planValid() && Date.now() - nagiAsked < 10 * 60e3) return;
   nagiBusy = true; nagiAsked = Date.now();
+  if (!planValid()) { nagiWaiting = true; render(); }
   try {
-    const token = Cloud.user ? await Cloud.token() : null;
+    await whenCloudSettled();
+    const token = Cloud.user ? await Cloud.token().catch(() => null) : null;
     const { plan } = await requestPlan(S, { lang: getLang(), areaOf: areaName, token, enabled: S.settings.nagiAgent !== false });
-    nagiPlan = plan; render();
-  } finally { nagiBusy = false; }
+    if (!S.settings.calm) return;
+    const first = !planValid() || nagiWaiting;
+    nagiPlan = plan; nagiWaiting = false;
+    try { localStorage.setItem(PLAN_KEY, JSON.stringify(plan)); } catch (_) {}
+    if (first) home.setCalm(true);         // the swell comes when the choice is made
+    render();
+  } finally { nagiBusy = false; nagiWaiting = false; }
 }
 const nagiWhy = id => (S.settings.calm && nagiPlan ? nagiPlan.keep.find(k => k.id === id) : null);
 const nagiSuggest = id => (S.settings.calm && nagiPlan ? nagiPlan.suggest.filter(x => x.id === id) : []);
 
 function render() {
   const L = live(), calm = S.settings.calm, keep = calm ? calmSet() : null;
-  home.setTasks(L.map(t => ({ id: t.id, kind: kindOf(t), sec: secOf(t), hidden: calm && !keep.has(t.id), ...St.placeOf(t, S.settings.budget, areaName(t)) })));
+  home.setTasks(L.map(t => ({ id: t.id, kind: kindOf(t), sec: secOf(t), hidden: !!(calm && keep && !keep.has(t.id)), ...St.placeOf(t, S.settings.budget, areaName(t)) })));
   home.setSunk(S.tasks.filter(t => t.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(t => t.kind));
   // While in Nagi mode, if the three kept tasks change, reframe the camera on their new positions
-  const keepKey = calm ? [...keep].sort().join() : '';
-  if (calm && lastKeep !== null && keepKey !== lastKeep) frameHome(1.8, 1400);
+  const keepKey = calm && keep ? [...keep].sort().join() : '';
+  if (calm && keepKey && lastKeep !== null && keepKey !== lastKeep) frameHome(lastKeep ? 1.8 : 2.6, lastKeep ? 1400 : 900);
   if (calm) queueMicrotask(() => refreshPlan(false));
   lastKeep = keepKey;
-  sharkSet = new Set(St.sharkIds(L.filter(t => !calm || keep.has(t.id)), S.settings.budget, areaName));
+  sharkSet = new Set(St.sharkIds(L.filter(t => !calm || !keep || keep.has(t.id)), S.settings.budget, areaName));
   home.setAlerts([...sharkSet]);
 
   const d = new Date();
@@ -101,7 +117,8 @@ function render() {
   const hello = tr(hr < 4 ? 'hello.night' : hr < 11 ? 'hello.morning' : hr < 18 ? 'hello.day' : 'hello.night');
   const urg = L.filter(urgent).length, today = cnt('surface');
   $('hello').textContent = hello;
-  const nagiMsg = calm && nagiPlan && nagiPlan.message ? `<span class="nagimsg">${esc(nagiPlan.message)}</span>` : '';
+  const nagiMsg = calm && nagiWaiting && !planValid() ? `<span class="nagimsg thinking">${esc(tr('nagi.thinking'))}</span>`
+    : calm && nagiPlan && nagiPlan.message ? `<span class="nagimsg">${esc(nagiPlan.message)}</span>` : '';
   $('summary').innerHTML = nagiMsg || `${esc(mdw(d))}${urg ? `　<button class="late linkish" data-go="map" title="${esc(tr('urgent.title'))}">${esc(tr('urgent.n', { n: urg }))}</button>` : ''}`;
   // counts live in the Overview (view from the sky)
   $('mapSub').innerHTML = (calm ? `<span class="calmnote">${tr('map.calmnote')}</span>　` : '') + tr('map.sub', { n: L.length, today, urg: urg ? tr('map.urg', { n: urg }) : '',
@@ -121,8 +138,9 @@ function render() {
     + `<div class="meter" role="meter" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${lvl + 1}" aria-label="${esc(tr('busy.label'))}">${KINDS.map((k, i) => `<i class="${i <= lvl ? 'on' : ''}"></i>`).join('')}</div>`;
 
   // today's priorities (only three in Nagi mode)
-  const ranked = rank(L.filter(t => secOf(t) === 'surface'));
-  const f = ranked[0], top = ranked.slice(1, calm ? 3 : 4); // in Nagi mode, only the three afloat
+  // in Nagi mode the cards are the kept tasks in the order Nagi gave; otherwise today's tasks by W
+  const ranked = calm && keep ? [...keep].map(id => L.find(t => t.id === id)).filter(Boolean) : rank(L.filter(t => secOf(t) === 'surface'));
+  const f = ranked[0], top = ranked.slice(1, calm ? 3 : 4);
   $('cards').innerHTML = top.length ? top.map(cardHTML).join('') : `<div class="empty">${tr('empty.others')}</div>`;
   // nothing else for today: drop the empty panel so the top block stays short
   $('top').querySelector('.row').classList.toggle('solo', !top.length);
@@ -416,9 +434,11 @@ function frameHome(dur, delay = 0) {
   }, delay);
 }
 function toggleCalm() {
-  S.settings.calm = !S.settings.calm; home.setCalm(S.settings.calm); if (!S.settings.calm) nagiPlan = null; save(); render();
-  if (S.settings.calm) refreshPlan(true);
-  if (station === 'home') frameHome(S.settings.calm ? 2.6 : 2.2, S.settings.calm ? 700 : 300);
+  S.settings.calm = !S.settings.calm;
+  if (!S.settings.calm) { nagiPlan = null; nagiWaiting = false; try { localStorage.removeItem(PLAN_KEY); } catch (_) {} home.setCalm(false); }
+  save(); render();
+  if (S.settings.calm) refreshPlan(true); // the swell, the sinking and the camera move happen once Nagi has chosen
+  if (station === 'home' && !S.settings.calm) frameHome(2.2, 300);
   // In the Overview (from the sky), adjust the height to what remains once the sinking is done
   if (station === 'map') setTimeout(() => { if (station === 'map' && !moving) { moving = true; home.flyTo(home.stationFor('map'), 2).then(() => { moving = false; }); } }, S.settings.calm ? 1900 : 400);
 }
@@ -645,14 +665,17 @@ startCloud({
   getJson: () => JSON.stringify(S),
   setJson: json => { S = St.fromJson(json); render(); renderEnv(); },
   localJson: () => JSON.stringify(St.load()),
-  onUser: () => { renderAccount(); Shiomi.kick(shiomiHooks, 800); },
+  onUser: (user, phase) => { renderAccount(); Shiomi.kick(shiomiHooks, 800); if (phase !== 'ready') { cloudSettled = true; cloudWaiters.splice(0).forEach(r => r()); } },
   toast: key => toast(tr(key))
 }).catch(() => {});
 hooksReady = true;
 Cloud.onSaved = ok => { if (!ok) toast(tr('toast.saveFail')); };
 
 render();
-if (S.settings.calm) { home.setCalm(true, true); home.jumpTo(home.stationFor('home', homeInsets())); }
+if (S.settings.calm) {
+  if (planValid()) { home.setCalm(true, true); home.jumpTo(home.stationFor('home', homeInsets())); } // a remembered plan: no waiting
+  else refreshPlan(true);
+}
 renderEnv();
 requestAnimationFrame(moveInd);
 // Time of day: update the sun's height every minute (test with ?hour=19.5)
