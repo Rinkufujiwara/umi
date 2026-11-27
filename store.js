@@ -1,5 +1,5 @@
 // タスクの保存と計算（一覧画面 list.html と同じ保存場所 umi.v1 を使う）
-import { ymd } from './parse.js?v=24';
+import { ymd } from './parse.js?v=25';
 
 export const KEY = 'umi.v1';
 export const COLORS = ['#2f6f8f', '#6a5acd', '#c0812c', '#3c8d5a', '#b4566e', '#4f7cc4', '#8a7a3c', '#3f8f8b'];
@@ -97,6 +97,7 @@ export const EFFORT_HOURS = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 56, 80];
 export const EFFORT_LABEL = ['15分', '30分', '1時間', '2時間', '半日', '1日', '2日', '4日', '1週間', '2週間以上'];
 const SHARK_W = 45, SHARK_MAX = 2;
 const V_MAX = (Math.pow(10, K.alpha) + Math.pow(10, K.beta)) * 2;           // I=P=D=10 のとき
+const SLACK_HALF = 3.5;                                                        // 余裕がこの日数で、奥行きのちょうど半分
 const U0 = Math.pow(1 + K.lambda / 0.5, K.delta);                            // 余裕 0 日の急ぎ（≈ 11.2）
 const clamp10 = v => Math.max(1, Math.min(10, Math.round(Number(v) || 1)));
 const has = (s, words) => words.some(w => s.includes(w));
@@ -170,7 +171,10 @@ export function compute(t, budget = 300, areaName = '') {
 export function placeOf(t, budget = 300, areaName = '') {
   const c = compute(t, budget, areaName);
   const u = Math.min(1, Math.max(0, Math.log(1 + c.V) / Math.log(1 + V_MAX)));
-  const v = c.slack == null ? 0.95 : Math.min(0.93, Math.max(0, 1 - Math.log(c.U) / Math.log(U0)));
+  // 奥行き＝余裕の日数（期限までの日数 − 作業にかかる日数）。0日で手前の端、半日で約1割、1日で約2割、1週間で約6割
+  // （前は急ぎ U の対数で決めていて、今日の締め切りでも3割より手前に来なかった）
+  const s = c.slack == null ? null : Math.max(0, c.slack);
+  const v = s == null ? 0.95 : Math.min(0.93, 0.93 * s / (s + SLACK_HALF));
   const size = 0.8 + 0.5 * Math.min(1, Math.max(0, Math.log(c.hours / 0.25) / Math.log(80 / 0.25)));
   return { u, v, size };
 }
