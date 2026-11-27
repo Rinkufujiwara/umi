@@ -366,7 +366,7 @@ export function createHome(canvas) {
     // 置き場所：u＝重さ（0 左の浅瀬 → 1 右の沖）、v＝時間の余裕（0 手前 → 1 奥）
   function placeUV(id, u, v) {
     const h = (k) => { let s = 0; for (const ch of id) s = (s * 31 + ch.charCodeAt(0) + k) >>> 0; return (s % 10000) / 10000; };
-    const z = lerp(10, -235, Math.min(1, Math.max(0, v + (h(1) - 0.5) * 0.04)));
+    const z = lerp(FRONT - 12, -235, Math.min(1, Math.max(0, v + (h(1) - 0.5) * 0.04))); // いちばん手前の線は、断面から少し離す
     const xmax = (132 - z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect * 0.82 - 6;
     const x0 = shoreL(z) + 12, x1 = Math.max(x0 + 20, xmax);
     const x = lerp(x0, x1, Math.min(1, Math.max(0, u + (h(2) - 0.5) * 0.06)));
@@ -406,6 +406,8 @@ export function createHome(canvas) {
       const dx = a.x - b.x, dz = a.z - b.z, d = Math.hypot(dx, dz), min = 13;
       if (d < min && d > 0.001) { const p = (min - d) / 2; a.x += dx / d * p; a.z += dz / d * p; b.x -= dx / d * p; b.z -= dz / d * p; }
     }
+    // 重なりをよけて手前に押し出されても、断面には近づけない
+    for (const o of arr) { const p = o.userData.target || o.position; if (p.z > FRONT - 9) p.z = FRONT - 9; }
   }
 
   // しぶきと波紋
