@@ -625,3 +625,11 @@ html[data-night="1"] #envMenu p { color: #b9d3d8 !important; }
 html[data-night="1"] .panel .fold:hover { background: rgba(255,255,255,.1); }
 @media (max-width: 820px) { .row .panel:not(.focus) .fold { display: none; } }
 .panel h2 > span:first-child { white-space: nowrap; flex: none; }
+
+/* ================================================================
+   UI scale. At 100% browser zoom the panels looked too large on desktop, so everything except the 3D lake
+   is drawn at --z (what 75% browser zoom looked like). Phones keep 1. JS converts screen px with ÷ --z (UIZ()).
+   ================================================================ */
+:root { --z: .75; }
+@media (max-width: 820px) { :root { --z: 1; } }
+.side, .top, .bedhint, .ticks, .axis, .mapview, .bedview, #pop, #envMenu, .addbox, .scrim, .mbar, .dive, .toast, #tags { zoom: var(--z); }

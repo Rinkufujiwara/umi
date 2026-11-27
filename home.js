@@ -1,15 +1,17 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=39';
-import { parseQuick } from './parse.js?v=39';
-import * as St from './store.js?v=39';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=39';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=39';
+import { createHome } from './home-scene.js?v=41';
+import { parseQuick } from './parse.js?v=41';
+import * as St from './store.js?v=41';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=41';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=41';
 applyStatic();
 gsap.registerPlugin(Observer);
 
 const $ = id => document.getElementById(id);
+// UI scale (--z in home.css): the panels are drawn at this zoom, so screen px ÷ Z = their own px
+const UIZ = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--z')) || 1;
 const { esc, secOf, dueLabel, estLabel } = St;
 const areaName = t => (S.areas.find(a => a.id === t.area) || {}).name || '';
 const rank = list => St.rank(list, S.settings.budget, areaName);
@@ -162,7 +164,7 @@ home.onFrame((pts, { inside }) => {
     el.className = 'tag' + (hlId === p.id ? ' hl' : '') + (sharkSet.has(t.id) ? ' urgent' : '') + (p.id === fresh ? ' fresh' : '') + (show ? '' : ' off');
     if (!show) continue;
     if (!el._w) { el._w = el.offsetWidth || 160; el._hh = el.offsetHeight || 24; }
-    const w = el._w, h = el._hh, gap = 10;
+    const Z = UIZ(), w = el._w * Z, h = el._hh * Z, gap = 10; // tags are scaled with the UI: measure in screen px
     // candidate spots: above → upper right → upper left → right → left → below → higher up
     const cands = [[-w / 2, -h - gap], [8, -h - gap - 6], [-w - 8, -h - gap - 6], [22, -h / 2], [-w - 22, -h / 2], [-w / 2, 44], [-w / 2, -2 * h - gap - 8], [14, -2 * h - gap], [-w - 14, -2 * h - gap]];
     let pos = cands[0], ok = false;
@@ -173,7 +175,7 @@ home.onFrame((pts, { inside }) => {
     }
     const L = p.x + pos[0], T = p.y + pos[1];
     blocks.push({ l: L - 4, t: T - 3, r: L + w + 4, b: T + h + 3 });
-    el.style.left = `${L}px`; el.style.top = `${T}px`;
+    el.style.left = `${L / Z}px`; el.style.top = `${T / Z}px`;
     if (!ok && hlId !== p.id && popId !== p.id) el.classList.add('off');  // if it fits nowhere, hide it (still shown on hover)
     // when a tag sits away from its buoy, join them with a thin line
     const cx = Math.max(L, Math.min(L + w, p.x)), cy = Math.max(T, Math.min(T + h, p.y));
@@ -273,9 +275,9 @@ function openPop(id, x, y) {
     ${later}
     <div class="go"><button class="btn pri" data-sink="${t.id}" title="${esc(tr('pop.sink.title'))}">${tr('btn.sink')}</button><button class="btn" data-dive="${t.id}">${tr('btn.dive')}</button>${moves}<a class="btn quiet" href="list.html">${tr('pop.edit')}</a><button class="btn quiet del" data-del="${t.id}" title="${esc(tr('pop.delete.title'))}">${tr('pop.delete')}</button></div>`;
   const pop = $('pop'); pop.classList.add('open');
-  const w = pop.offsetWidth, h = pop.offsetHeight;
-  pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, x - w / 2))}px`;
-  pop.style.top = `${Math.max(12, Math.min(innerHeight - h - 12, y - h - 24))}px`;
+  const Z = UIZ(), w = pop.offsetWidth * Z, h = pop.offsetHeight * Z;
+  pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, x - w / 2)) / Z}px`; // screen px → the card's scaled px
+  pop.style.top = `${Math.max(12, Math.min(innerHeight - h - 12, y - h - 24)) / Z}px`;
   $('scrim').classList.add('open');
 }
 function closePop() { $('pop').classList.remove('open'); $('envMenu').classList.remove('open'); $('scrim').classList.remove('open'); popId = null; hlId = null; home.setHover(null); }
@@ -293,7 +295,7 @@ document.addEventListener('click', e => {
   if (wt && popId) { const t = S.tasks.find(x => x.id === popId); t.w = { ...(t.w || {}), ...St.WEIGHT_IP[+wt.dataset.weight] }; t.touchedAt = Date.now(); delete t.sample; save(); const id = popId, r = $('pop').getBoundingClientRect(); render(); openPop(id, r.left + r.width / 2, r.bottom + 24); return; }
   const op = e.target.closest('[data-open]');
   if (op) {
-    const tag = tagEls.get(op.dataset.open);
+    const tg = tagEls.get(op.dataset.open), tag = tg && !tg.classList.contains("off") && tg.offsetParent ? tg : null; // a hidden tag has no position: use the card instead
     const r = (tag || op).getBoundingClientRect();
     openPop(op.dataset.open, r.left + r.width / 2, tag ? r.top : r.bottom + 260);
   }
@@ -361,7 +363,7 @@ document.addEventListener('click', e => { if (e.target.closest('[data-calm]')) t
 const QUICK = () => tr('quick');
 function openAdd() {
   const r = $('addBtn').getBoundingClientRect(), box = $('addbox');
-  box.style.top = `${r.bottom + 10}px`; box.style.right = `${Math.max(12, innerWidth - r.right)}px`;
+  const Z = UIZ(); box.style.top = `${(r.bottom + 10) / Z}px`; box.style.right = `${Math.max(12, innerWidth - r.right) / Z}px`;
   $('quick').innerHTML = QUICK().map(w => `<button type="button" data-q="${w}">${w}</button>`).join('') +
     S.areas.slice(0, 4).map(a => `<button type="button" data-q="#${esc(a.name)}">#${esc(a.name)}</button>`).join('');
   box.classList.add('open'); $('scrim').classList.add('open'); $('addInput').value = ''; showPv();
