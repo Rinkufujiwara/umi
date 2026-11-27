@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Umi</title>
-<link rel="stylesheet" href="home.css?v=36a">
+<link rel="stylesheet" href="home.css?v=39a">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="row">
-    <section class="panel glass"><h2 data-i18n="panel.top">Today's priorities</h2><div class="cards" id="cards"></div></section>
-    <section class="panel glass focus"><h2 data-i18n="panel.focus">The one for now</h2><div id="focus"></div></section>
+    <section class="panel glass"><h2><span data-i18n="panel.top">Today's priorities</span><span class="sum" id="sumTop"></span><button class="fold" type="button" data-fold aria-expanded="true" data-i18n-attr="title:fold.title,aria-label:fold.title"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button></h2><div class="cards" id="cards"></div></section>
+    <section class="panel glass focus"><h2><span data-i18n="panel.focus">The one for now</span><span class="sum" id="sumFocus"></span><button class="fold" type="button" data-fold aria-expanded="true" data-i18n-attr="title:fold.title,aria-label:fold.title"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button></h2><div id="focus"></div></section>
   </div>
 </div>
 
@@ -110,8 +110,8 @@
 </div>
 <div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastUndo" data-i18n="toast.undo">Undo</button></div>
 
-<script src="env.js?v=36"></script>
-<script src="firebase-config.js?v=36"></script>
-<script type="module" src="home.js?v=36"></script>
+<script src="env.js?v=39"></script>
+<script src="firebase-config.js?v=39"></script>
+<script type="module" src="home.js?v=39"></script>
 </body>
 </html>

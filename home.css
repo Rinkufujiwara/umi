@@ -610,3 +610,18 @@ html[data-night="1"] #envMenu p { color: #b9d3d8 !important; }
 .row.solo .focus #focus { display: flex; align-items: center; gap: 16px; flex: 1; }
 .row.solo .focus #focus .card { flex: 1; }
 .row.solo .focus #focus .go { margin: 0; }
+
+/* fold the top panels down to their title line */
+.panel h2 { display: flex; align-items: center; gap: 10px; min-height: 16px; }
+.panel h2 .sum { display: none; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.panel .fold { margin-left: auto; flex: none; width: 24px; height: 24px; margin-top: -4px; margin-bottom: -4px; border: 0; border-radius: 6px; background: none; color: var(--sub); display: grid; place-items: center; cursor: pointer; }
+.panel .fold:hover { background: rgba(22,48,58,.08); color: var(--ink); }
+.panel .fold svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .22s var(--ease-out); }
+.panel .fold[aria-expanded="false"] svg { transform: rotate(180deg); }
+.row.folded .panel > :not(h2) { display: none !important; }
+.row.folded .panel h2 { margin: 0; }
+.row.folded .panel h2 .sum { display: block; }
+.row.folded.solo .focus { display: block !important; }
+html[data-night="1"] .panel .fold:hover { background: rgba(255,255,255,.1); }
+@media (max-width: 820px) { .row .panel:not(.focus) .fold { display: none; } }
+.panel h2 > span:first-child { white-space: nowrap; flex: none; }

@@ -1,11 +1,11 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=36';
-import { parseQuick } from './parse.js?v=36';
-import * as St from './store.js?v=36';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=36';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=36';
+import { createHome } from './home-scene.js?v=39';
+import { parseQuick } from './parse.js?v=39';
+import * as St from './store.js?v=39';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=39';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=39';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -96,6 +96,12 @@ function render() {
   $('cards').innerHTML = top.length ? top.map(cardHTML).join('') : `<div class="empty">${tr('empty.others')}</div>`;
   // nothing else for today: drop the empty panel so the top block stays short
   $('top').querySelector('.row').classList.toggle('solo', !top.length);
+  // folded panels keep only their title line, with a short summary in it
+  const folded = !!S.settings.folded;
+  $('top').querySelector('.row').classList.toggle('folded', folded);
+  document.querySelectorAll('[data-fold]').forEach(b => b.setAttribute('aria-expanded', String(!folded)));
+  $('sumTop').textContent = top.length ? tr('sum.n', { n: top.length }) : '';
+  $('sumFocus').textContent = f ? f.title : '';
   focusId = f ? f.id : null;
   $('focus').innerHTML = f ? `${cardHTML(f)}<div class="go"><button class="btn pri" data-sink="${f.id}">${tr('btn.sink')}</button><button class="btn" data-dive="${f.id}">${tr('btn.dive')}</button><button class="btn quiet" data-later="${f.id}">${tr('btn.later')}</button></div>`
     : `<div class="empty">${tr('empty.focus')}</div>`;
@@ -342,6 +348,12 @@ function toggleCalm() {
   if (station === 'map') setTimeout(() => { if (station === 'map' && !moving) { moving = true; home.flyTo(home.stationFor('map'), 2).then(() => { moving = false; }); } }, S.settings.calm ? 1900 : 400);
 }
 $('calmBtn').onclick = toggleCalm;
+// fold / open the two top panels together (they share a row, so their heights stay equal)
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-fold]')) return;
+  S.settings.folded = !S.settings.folded; save(); render();
+  if (station === 'home' && S.settings.calm) frameHome(0.8, 260);
+});
 document.addEventListener('click', e => { if (e.target.closest('[data-calm]')) toggleCalm(); });
 
 // Add

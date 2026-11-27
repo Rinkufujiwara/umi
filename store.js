@@ -1,6 +1,6 @@
 // Saving and computing tasks (shares the umi.v1 storage key with the table page, list.html)
-import { ymd } from './parse.js?v=36';
-import { t as tr, getLang, md } from './i18n.js?v=36';
+import { ymd } from './parse.js?v=39';
+import { t as tr, getLang, md } from './i18n.js?v=39';
 
 export const KEY = 'umi.v1';
 export const COLORS = ['#2f6f8f', '#6a5acd', '#c0812c', '#3c8d5a', '#b4566e', '#4f7cc4', '#8a7a3c', '#3f8f8b'];
@@ -101,6 +101,7 @@ export const EFFORT_HOURS = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 56, 80];
 export const EFFORT_LABEL = new Proxy([], { get: (_, k) => (/^\d$/.test(k) ? tr('effort')[+k] : k === 'length' ? 10 : undefined) });
 const SHARK_W = 45, SHARK_MAX = 2;
 const V_MAX = (Math.pow(10, K.alpha) + Math.pow(10, K.beta)) * 2;           // when I = P = D = 10
+const U_MIN = Math.log(1 + 2) / Math.log(1 + V_MAX);                         // u of the lightest task (V = 2)
 const SLACK_HALF = 3;                                                          // slack beyond one day that reaches half the depth
 const U0 = Math.pow(1 + K.lambda / 0.5, K.delta);                            // urgency at zero slack (≈ 11.2)
 const clamp10 = v => Math.max(1, Math.min(10, Math.round(Number(v) || 1)));
@@ -174,14 +175,16 @@ export function compute(t, budget = 300, areaName = '') {
 // Placement: u = weight (0 near the shore → 1 offshore), v = urgency (0 front → 1 back), size = effort (buoy size factor)
 export function placeOf(t, budget = 300, areaName = '') {
   const c = compute(t, budget, areaName);
-  const u = Math.min(1, Math.max(0, Math.log(1 + c.V) / Math.log(1 + V_MAX)));
+  const uRaw = Math.min(1, Math.max(0, Math.log(1 + c.V) / Math.log(1 + V_MAX)));
+  // spread so the lightest possible task (I = P = D = 1) sits right by the shore and the heaviest far offshore
+  const u = Math.max(0, (uRaw - U_MIN) / (1 - U_MIN));
   // depth = days of slack (days until due − days of work)
   // Within one day (late, half a day, today) all share the front line; Nagi mode's order (W) decides which stay
   // beyond one day they move back: 2 days ≈ 0.2, a week ≈ 0.6, no due date at the back
   const s = c.slack == null ? null : Math.max(0, c.slack - 1);
   const v = s == null ? 0.95 : Math.min(0.93, 0.93 * s / (s + SLACK_HALF));
   const size = 0.8 + 0.5 * Math.min(1, Math.max(0, Math.log(c.hours / 0.25) / Math.log(80 / 0.25)));
-  return { u, v, size };
+  return { u, v, size, uRaw };
 }
 
 // Order to do things in: by W, largest first
@@ -198,8 +201,8 @@ export function sharkIds(list, budget = 300, areaOf = () => '') {
 export const WEIGHT = new Proxy({}, { get: (_, k) => (/^[123]$/.test(k) ? tr('w.' + k) : undefined) });
 export const WEIGHT_IP = { 1: { i: 2, p: 2 }, 2: { i: 5, p: 4 }, 3: { i: 8, p: 8 } };
 export function weightLevel(t, budget, areaName) {
-  const { u } = placeOf(t, budget, areaName);
-  return u < 0.5 ? 1 : u < 0.72 ? 2 : 3;
+  const { uRaw } = placeOf(t, budget, areaName);
+  return uRaw < 0.5 ? 1 : uRaw < 0.72 ? 2 : 3;
 }
 
 export function nextDue(t) {
