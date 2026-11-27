@@ -721,29 +721,39 @@ export function createHome(canvas) {
     }
     if (!pts.length) return null;
     const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length); c.y = 0;
-    const dir = new THREE.Vector3(0, -0.26, -1).normalize();
+    const frontZ = Math.max(...pts.map(p => p.z));
     tmpCam.fov = camera.fov; tmpCam.aspect = camera.aspect; tmpCam.near = 0.5; tmpCam.far = 3000; tmpCam.updateProjectionMatrix();
-    tmpCam.quaternion.copy(qFrom([0, 0, 0], dir.toArray(), [0, 1, 0]));
-    const R = new THREE.Vector3(1, 0, 0).applyQuaternion(tmpCam.quaternion), U = new THREE.Vector3(0, 1, 0).applyQuaternion(tmpCam.quaternion);
+    // 枠：ダッシュボードに隠れない所（左の列の右・上のパネルの下）。この枠の真ん中に収める
     const W = innerWidth, H = innerHeight;
-    const ins = { left: insets.left, right: insets.right, top: insets.top, bottom: Math.max(insets.bottom, H * 0.12) };
+    const ins = { left: insets.left, right: insets.right, top: insets.top, bottom: Math.max(insets.bottom, H * 0.06) };
     const sx0 = ins.left / W * 2 - 1, sx1 = (W - ins.right) / W * 2 - 1, sy1 = 1 - ins.top / H * 2, sy0 = 1 - (H - ins.bottom) / H * 2;
     const tanV = Math.tan(THREE.MathUtils.degToRad(tmpCam.fov / 2));
-    let D = 120; const pos = c.clone().addScaledVector(dir, -D);
-    for (let it = 0; it < 8; it++) {
-      tmpCam.position.copy(pos); tmpCam.updateMatrixWorld();
-      let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
-      for (const p of pts) { v3.copy(p).project(tmpCam); x0 = Math.min(x0, v3.x); x1 = Math.max(x1, v3.x); y0 = Math.min(y0, v3.y); y1 = Math.max(y1, v3.y); }
-      // 真ん中を安全な枠の真ん中へ寄せる
-      pos.addScaledVector(R, ((x0 + x1) / 2 - (sx0 + sx1) / 2) * D * tanV * tmpCam.aspect);
-      pos.addScaledVector(U, ((y0 + y1) / 2 - (sy0 + sy1) / 2) * D * tanV);
-      // 枠の7割を埋める近さへ
-      const f = Math.max((x1 - x0) / (sx1 - sx0), (y1 - y0) / (sy1 - sy0), 0.05) / 0.7;
-      const nd = Math.min(260, Math.max(48, D * f));
-      pos.addScaledVector(dir, D - nd); D = nd;
+    // 見下ろす角度を浅い方から試し、カメラが水面の上・いちばん手前のブイより後ろにいられる角度を使う
+    let best = null;
+    for (const pitch of [0.26, 0.4, 0.55, 0.72, 0.9, 1.1, 1.35]) {
+      const dir = new THREE.Vector3(0, -Math.sin(Math.atan(pitch)), -Math.cos(Math.atan(pitch)));
+      tmpCam.quaternion.copy(qFrom([0, 0, 0], dir.toArray(), [0, 1, 0]));
+      const R = new THREE.Vector3(1, 0, 0).applyQuaternion(tmpCam.quaternion), U = new THREE.Vector3(0, 1, 0).applyQuaternion(tmpCam.quaternion);
+      let D = 120; const pos = c.clone().addScaledVector(dir, -D);
+      let off = 0;
+      for (let it = 0; it < 10; it++) {
+        tmpCam.position.copy(pos); tmpCam.updateMatrixWorld();
+        let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+        for (const p of pts) { v3.copy(p).project(tmpCam); x0 = Math.min(x0, v3.x); x1 = Math.max(x1, v3.x); y0 = Math.min(y0, v3.y); y1 = Math.max(y1, v3.y); }
+        const dx = (x0 + x1) / 2 - (sx0 + sx1) / 2, dy = (y0 + y1) / 2 - (sy0 + sy1) / 2;
+        off = Math.hypot(dx, dy);
+        pos.addScaledVector(R, dx * D * tanV * tmpCam.aspect);
+        pos.addScaledVector(U, dy * D * tanV);
+        // 枠の6割を埋める近さへ（近づきすぎない）
+        const f = Math.max((x1 - x0) / (sx1 - sx0), (y1 - y0) / (sy1 - sy0), 0.05) / 0.6;
+        const nd = Math.min(260, Math.max(44, D * f));
+        pos.addScaledVector(dir, D - nd); D = nd;
+      }
+      const ok = pos.y >= 9 && pos.z >= frontZ + 10;
+      best = { pos: pos.clone(), dir };
+      if (ok && off < 0.05) break;
     }
-    // 断面より手前・水面より上にとどまる
-    if (pos.z < FRONT + 24) pos.z = FRONT + 24;
+    const pos = best.pos, dir = best.dir;
     if (pos.y < 9) pos.y = 9;
     return { pos: pos.toArray(), look: pos.clone().addScaledVector(dir, 200).toArray(), uf: 70 };
   }

@@ -1,10 +1,10 @@
 // Umi ホーム：湖に浮かぶブイ＝タスク。終えたら沈める。ホイールはページではなくカメラを動かす
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=23';
-import { parseQuick } from './parse.js?v=23';
-import * as St from './store.js?v=23';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=23';
+import { createHome } from './home-scene.js?v=24';
+import { parseQuick } from './parse.js?v=24';
+import * as St from './store.js?v=24';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=24';
 gsap.registerPlugin(Observer);
 
 const $ = id => document.getElementById(id);
@@ -145,7 +145,7 @@ home.onFrame((pts, { inside }) => {
     seen.add(p.id);
     let el = tagEls.get(p.id);
     if (!el) { el = document.createElement('div'); el.className = 'tag'; el.dataset.open = p.id; $('tags').appendChild(el); tagEls.set(p.id, el); }
-    const html = `<i style="background:${KIND_COLOR[t.kind || 'none']}"></i>${esc(t.title)}`;
+    const html = `<i style="background:${KIND_COLOR[kindOf(t)]}"></i>${esc(t.title)}`; // 潮見の「必須」も色に出す
     if (el._h !== html) { el.innerHTML = html; el._h = html; el._w = 0; }
     el.className = 'tag' + (hlId === p.id ? ' hl' : '') + (sharkSet.has(t.id) ? ' urgent' : '') + (p.id === fresh ? ' fresh' : '') + (show ? '' : ' off');
     if (!show) continue;
