@@ -406,13 +406,25 @@ export function createHome(canvas) {
   }
   // placement by section: today in front, this week in the middle, someday far away
     // placement: u = weight (0 shallows by the shore → 1 offshore), v = slack (0 front → 1 back)
+  const Z_FRONT = FRONT - 12, Z_BACK = -235; // the front line keeps a little distance from the cut-away
+  // the water's usable width at depth z: from near the shore (x0) to the offshore limit (x1)
+  function xRange(z) {
+    const xmax = (132 - z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect * 0.64 - CAM_X - 6; // offshore is drawn on the left (mirror): reach the left column's edge, measured from the shifted camera
+    const x0 = shoreL(z) + 12;
+    return [x0, Math.max(x0 + 20, xmax)];
+  }
   function placeUV(id, u, v) {
     const h = (k) => { let s = 0; for (const ch of id) s = (s * 31 + ch.charCodeAt(0) + k) >>> 0; return (s % 10000) / 10000; };
-    const z = lerp(FRONT - 12, -235, Math.min(1, Math.max(0, v + (h(1) - 0.5) * 0.04))); // the front line keeps a little distance from the cut-away
-    const xmax = (132 - z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect * 0.64 - CAM_X - 6; // offshore is drawn on the left (mirror): reach the left column's edge, measured from the shifted camera
-    const x0 = shoreL(z) + 12, x1 = Math.max(x0 + 20, xmax);
+    const z = lerp(Z_FRONT, Z_BACK, Math.min(1, Math.max(0, v + (h(1) - 0.5) * 0.04)));
+    const [x0, x1] = xRange(z);
     const x = lerp(x0, x1, Math.min(1, Math.max(0, u + (h(2) - 0.5) * 0.06)));
     return new THREE.Vector3(x, 0, z);
+  }
+  // the reverse: where a buoy sits → u (weight) and v (slack), both 0–1
+  function uvAt(p) {
+    const v = Math.min(1, Math.max(0, (p.z - Z_FRONT) / (Z_BACK - Z_FRONT)));
+    const [x0, x1] = xRange(p.z);
+    return { u: Math.min(1, Math.max(0, (p.x - x0) / (x1 - x0))), v };
   }
   let tasksSeen = false;
   function setTasks(list) {
@@ -592,6 +604,30 @@ export function createHome(canvas) {
       if (d < bd) { bd = d; best = b.userData.id; }
     }
     return best;
+  }
+  // drag a buoy across the water: the pointer's ray meets the water plane, the buoy follows (kept on the water)
+  const waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitV = new THREE.Vector3();
+  let drag = null;
+  function dragStart(id) {
+    const b = buoys.get(id); if (!b || b.userData.sinking || b.userData.hidden) return false;
+    drag = { b }; b.userData.dragging = true; delete b.userData.target; return true;
+  }
+  function dragMove(clientX, clientY) {
+    if (!drag) return null;
+    const r = canvas.getBoundingClientRect();
+    ndc.set((clientX - r.left) / r.width * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    if (!ray.ray.intersectPlane(waterPlane, hitV)) return null;
+    const p = W(hitV); // world → local (the mirror is its own inverse)
+    p.z = Math.min(Z_FRONT, Math.max(Z_BACK, p.z));
+    const [x0, x1] = xRange(p.z); p.x = Math.min(x1, Math.max(x0, p.x));
+    drag.b.position.x = p.x; drag.b.position.z = p.z;
+    return uvAt(p);
+  }
+  function dragEnd() {
+    if (!drag) return null;
+    const b = drag.b; drag = null; b.userData.dragging = false;
+    return uvAt(b.position);
   }
   let hovered = null;
   function setHover(id) {
@@ -923,7 +959,7 @@ export function createHome(canvas) {
         }
         continue;
       }
-      if (u.target) { b.position.lerp(u.target, Math.min(1, dt * 1.5)); if (b.position.distanceTo(u.target) < 0.05) delete u.target; }
+      if (u.target && !u.dragging) { b.position.lerp(u.target, Math.min(1, dt * 1.5)); if (b.position.distanceTo(u.target) < 0.05) delete u.target; }
       if (u.base) { const mk = sstep(60, 220, cam.py); b.scale.setScalar(lerp(u.base, u.farBase || u.base, mk) * (1 + mk * 1.6)); } // grow and even out as the camera rises (and the reverse on the way back)
       if (u.riseT !== undefined) { u.riseT += dt; if (u.riseT > 1.4) delete u.riseT; }
       const rise = u.riseT !== undefined ? Math.pow(Math.min(1, u.riseT / 1.4), 0.6) : 1;
@@ -936,6 +972,7 @@ export function createHome(canvas) {
         if (k >= 1) { b.visible = false; delete u.diveT; u.dived = false; }
       }
       b.position.y = Math.sin(clock * (0.9 + sw * 0.8) + u.ph) * amp - (1 - rise) * 4 - dive;
+      if (u.dragging) b.position.y += 1.2; // lifted a little while you hold it
       if (u.nudge) { u.nudge = Math.max(0, u.nudge - dt * 1.6); }
       b.rotation.z = Math.sin(clock * 0.7 + u.ph) * (0.04 + wind * 0.08) + (u.nudge ? Math.sin(clock * 22) * 0.3 * u.nudge : 0);
       b.rotation.x = Math.cos(clock * 0.6 + u.ph) * 0.03;
@@ -964,7 +1001,7 @@ export function createHome(canvas) {
   requestAnimationFrame(frame);
 
   return {
-    setTasks, sink, setSunk, flyTo, jumpTo, setCalm, diveStation, setDive, setDiveDepth, puff, setSeason, setWeather, setAlerts, setTime, pick, setHover, STATIONS, stationFor, cam, camera,
+    setTasks, sink, setSunk, flyTo, jumpTo, dragStart, dragMove, dragEnd, setCalm, diveStation, setDive, setDiveDepth, puff, setSeason, setWeather, setAlerts, setTime, pick, setHover, STATIONS, stationFor, cam, camera,
     onFrame: fn => listeners.push(fn),
     get sunkCount() { return heapN; },
     get sunAlt() { return sunAlt; }

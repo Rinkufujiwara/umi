@@ -3,7 +3,7 @@
 // The app builds a ShiomiReport (Shiomi's judgments + the app's own numbers), asks the Nagi agent for a
 // NagiPlan, checks the plan against fixed rules, and falls back to the formula (top 3 by W) whenever the
 // agent is off, slow, or returns something that breaks a rule. Nagi only proposes; nothing here edits tasks.
-import * as St from './store.js?v=44';
+import * as St from './store.js?v=45';
 
 export const PLAN_VERSION = 1;
 const ACTIONS = new Set(['tomorrow', 'lighter', 'later', 'dive']);

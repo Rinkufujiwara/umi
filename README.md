@@ -14,6 +14,7 @@ A few names are kept as they are in both languages: **Umi** (the app, "sea"), **
   - **Right ↔ left = weight**: light tasks stay near the shore on the right; heavy ones drift offshore to the left (we read from the left, so the heavy ones come first).
   - **Size = effort**: bigger buoys take longer.
 - **Sink**: press a buoy and choose *Sink*, or long-press it (0.7 s). It drops through the water and piles up on the lakebed.
+- **Drag**: grab a buoy and move it. Where you drop it becomes its values: toward the shore = lighter, offshore = heavier (I and P are set to match), toward the front = due sooner, toward the back = more slack (the due date is worked back from the depth; the far back means someday). These count as your own values, so Shiomi learns from them too. Undo from the toast.
 - **Views**: scroll (or use the arrow keys) to move between the *Overview* from the sky, the surface, and the *Lakebed*.
 - **Nagi mode**: the water swells once and settles, every buoy except the three to do now sinks out of sight, and the camera frames the three that remain.
 - **Dive (focus timer)**: dive under one task's buoy (25 min, 50 min or no limit); depth follows the time. Stray thoughts become *bubble notes* that rise to the surface. When you surface, take a *decompression* break of one fifth of the dive, then float the bubble notes as tasks or drop them.

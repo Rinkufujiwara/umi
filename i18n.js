@@ -39,7 +39,7 @@ const en = {
   // toasts
   'toast.sunk': 'Sank "{t}"', 'toast.deleted': 'Deleted "{t}"', 'toast.later': 'Moved "{t}" farther ({d})',
   'toast.lighter': 'Moved "{t}" to the shallows (weight: {w})', 'toast.moved': 'Moved "{t}" to {s}',
-  'toast.raised': 'Raised "{t}"', 'toast.added': 'Floated on the {s}: {t}', 'toast.undo': 'Undo',
+  'toast.raised': 'Raised "{t}"', 'toast.dragged': 'Moved "{t}": {c}', 'toast.added': 'Floated on the {s}: {t}', 'toast.undo': 'Undo',
   'toast.saveFail': 'Could not save to your account', 'toast.noDiveTarget': 'There is no task to dive into',
   // card (pop)
   'pop.weight': 'Weight', 'pop.weightIs': 'Weight: {w}', 'pop.later': 'Farther', 'pop.dove': 'Dove {t} in total',
@@ -124,7 +124,7 @@ const ja = {
   'sec.surface': '水面', 'sec.shallows': '浅瀬', 'sec.depths': '深み',
   'toast.sunk': '「{t}」を沈めました', 'toast.deleted': '「{t}」を削除しました', 'toast.later': '「{t}」を遠くへ（{d}）',
   'toast.lighter': '「{t}」を浅瀬へ（重さ：{w}）', 'toast.moved': '「{t}」を{s}へ',
-  'toast.raised': '「{t}」を引き上げました', 'toast.added': '{s}に浮かべました：{t}', 'toast.undo': '元に戻す',
+  'toast.raised': '「{t}」を引き上げました', 'toast.dragged': '「{t}」を動かしました：{c}', 'toast.added': '{s}に浮かべました：{t}', 'toast.undo': '元に戻す',
   'toast.saveFail': 'アカウントに保存できませんでした', 'toast.noDiveTarget': '潜る先のタスクがありません',
   'pop.weight': '重さ', 'pop.weightIs': '重さ：{w}', 'pop.later': '遠くへ', 'pop.dove': '潜った 計{t}',
   'pop.shiomi': '潮見', 'pop.guess': '目安', 'pop.why': '{src}：価値 {i}・痛手 {p}・待ち {d}',

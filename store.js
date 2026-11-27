@@ -1,6 +1,6 @@
 // Saving and computing tasks (shares the umi.v1 storage key with the table page, list.html)
-import { ymd } from './parse.js?v=44';
-import { t as tr, getLang, md } from './i18n.js?v=44';
+import { ymd } from './parse.js?v=45';
+import { t as tr, getLang, md } from './i18n.js?v=45';
 
 export const KEY = 'umi.v1';
 export const COLORS = ['#2f6f8f', '#6a5acd', '#c0812c', '#3c8d5a', '#b4566e', '#4f7cc4', '#8a7a3c', '#3f8f8b'];
@@ -195,6 +195,34 @@ export function rank(list, budget = 300, areaOf = () => '') {
 export function sharkIds(list, budget = 300, areaOf = () => '') {
   return list.map(t => ({ t, c: compute(t, budget, areaOf(t)) }))
     .filter(x => x.c.must && x.c.W >= SHARK_W).sort((a, b) => b.c.W - a.c.W).slice(0, SHARK_MAX).map(x => x.t.id);
+}
+
+// ---------------------------------------------------------------- dragging a buoy: position → your values
+// Across (u): find the I and P (1–10) whose weight V lands closest to that spot; prefer values near the current ones.
+export function weightFromU(t, u, budget = 300, areaName = '') {
+  const c = compute(t, budget, areaName);
+  const uRaw = U_MIN + Math.min(1, Math.max(0, u)) * (1 - U_MIN);
+  const target = Math.log(1 + Math.exp(uRaw * Math.log(1 + V_MAX)) - 1);
+  const dep = 1 + (c.D - 1) / 9;
+  let best = null, bd = Infinity;
+  for (let i = 1; i <= 10; i++) for (let p = 1; p <= 10; p++) {
+    const V = (Math.pow(i, K.alpha) * c.aging + Math.pow(p, K.beta)) * dep;
+    const d = Math.abs(Math.log(1 + V) - target) + 0.004 * (Math.abs(i - c.I) + Math.abs(p - c.P));
+    if (d < bd) { bd = d; best = { i, p }; }
+  }
+  return best;
+}
+// Front ↔ back (v): turn the depth back into days of slack, then into a due date.
+// The front line means "within a day" (due today); the far back means someday (no due date).
+export function dueFromV(t, v, budget = 300, areaName = '') {
+  if (v >= 0.9) return { due: null, time: null, pin: 'depths' };
+  const c = compute(t, budget, areaName);
+  const s = v <= 0.02 ? 0 : SLACK_HALF * v / (0.93 - v);        // inverse of placeOf's depth curve
+  const slack = s + 1, work = c.hours / Math.max(0.5, budget / 60);
+  const nowFrac = (new Date().getHours() * 60 + new Date().getMinutes()) / 1440;
+  const days = v <= 0.02 ? 0 : Math.max(0, Math.round(slack + work - 1 + nowFrac));
+  const due = plusDays(days);
+  return { due, time: due === t.due ? t.time : null, pin: null };
 }
 
 // Three weight steps (when set by hand): they overwrite I and P

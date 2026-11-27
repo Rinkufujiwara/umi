@@ -640,3 +640,7 @@ html[data-night="1"] .panel .fold:hover { background: rgba(255,255,255,.1); }
 html[data-night="1"] .pop .nagiwhy b { color: #9fd6dc; }
 .pop .nagisug { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .greet .nagimsg { color: var(--ink); font-weight: 500; }
+
+/* while a buoy is being dragged: a grabbing cursor, and no text selection or page scrolling */
+body.dragging, body.dragging #scene { cursor: grabbing !important; user-select: none; }
+#scene { touch-action: none; }

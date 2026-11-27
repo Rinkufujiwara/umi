@@ -1,12 +1,12 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=44';
-import { parseQuick } from './parse.js?v=44';
-import * as St from './store.js?v=44';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=44';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=44';
-import { requestPlan } from './nagi.js?v=44';
+import { createHome } from './home-scene.js?v=45';
+import { parseQuick } from './parse.js?v=45';
+import * as St from './store.js?v=45';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=45';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=45';
+import { requestPlan } from './nagi.js?v=45';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -357,8 +357,40 @@ addEventListener('pointerdown', e => {
   if (e.button !== 0 || overlayOpen()) return;
   const id = holdTarget(e); if (id && station !== 'bed') startHold(id, e.clientX, e.clientY);
 });
-addEventListener('pointermove', e => { if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 10) cancelHold(); });
-addEventListener('pointerup', cancelHold); addEventListener('pointercancel', cancelHold);
+// Moving the finger instead turns the hold into a drag: the buoy follows along the water, and where you drop it
+// becomes its weight (shore ↔ offshore) and its due date (front ↔ back). Your values, so Shiomi learns from them too.
+let dragging = null;
+addEventListener('pointermove', e => {
+  if (dragging) { e.preventDefault(); const uv = home.dragMove(e.clientX, e.clientY); if (uv) dragging.uv = uv; return; }
+  if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 10) {
+    const id = hold.id; cancelHold();
+    if (station !== 'bed' && home.dragStart(id)) {
+      dragging = { id, uv: null }; closePop(); document.body.classList.add('dragging');
+      const uv = home.dragMove(e.clientX, e.clientY); if (uv) dragging.uv = uv;
+    }
+  }
+}, { passive: false });
+addEventListener('pointerup', () => { cancelHold(); if (dragging) dropBuoy(); });
+addEventListener('pointercancel', () => { cancelHold(); if (dragging) { home.dragEnd(); dragging = null; document.body.classList.remove('dragging'); render(); } });
+function dropBuoy() {
+  const { id } = dragging; dragging = null; document.body.classList.remove('dragging');
+  const uv = home.dragEnd(); swallowClick = true; setTimeout(() => { swallowClick = false; }, 50);
+  const t = S.tasks.find(x => x.id === id); if (!t || !uv) { render(); return; }
+  const before = St.placeOf(t, S.settings.budget, areaName(t));
+  const prev = { w: t.w ? { ...t.w } : undefined, due: t.due, time: t.time, pin: t.pin };
+  const changed = [];
+  if (Math.abs(uv.u - before.u) > 0.04) {
+    t.w = { ...(t.w || {}), ...St.weightFromU(t, uv.u, S.settings.budget, areaName(t)) };
+    changed.push(tr('pop.weightIs', { w: St.WEIGHT[levelOf(t)] }));
+  }
+  if (Math.abs(uv.v - before.v) > 0.03) {
+    Object.assign(t, St.dueFromV(t, uv.v, S.settings.budget, areaName(t)));
+    changed.push(t.due ? dueLabel(t).text : tr('pv.someday'));
+  }
+  if (!changed.length) { render(); return; }
+  t.touchedAt = Date.now(); delete t.sample; save(); render();
+  toast(tr('toast.dragged', { t: t.title, c: changed.join(' · ') }), () => { t.w = prev.w; t.due = prev.due; t.time = prev.time; t.pin = prev.pin; });
+}
 addEventListener('contextmenu', e => { if (e.target === $('scene') || e.target.closest?.('.tag')) e.preventDefault(); });
 // the click that follows a long-press sink must not open the card
 addEventListener('click', e => { if (swallowClick) { swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
@@ -546,7 +578,7 @@ function goTo(name) {
   }
 }
 document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) goTo(g.dataset.go); });
-const overlayOpen = () => station === 'dive' || !$('dive').hidden || $('addbox').classList.contains('open') || $('pop').classList.contains('open') || $('envMenu').classList.contains('open');
+const overlayOpen = () => !!dragging || station === 'dive' || !$('dive').hidden || $('addbox').classList.contains('open') || $('pop').classList.contains('open') || $('envMenu').classList.contains('open');
 Observer.create({
   target: window, type: 'wheel,touch', tolerance: 24, preventDefault: true, wheelSpeed: -1,
   onUp: () => { if (!overlayOpen() && !scrollingInside()) step(1); },
