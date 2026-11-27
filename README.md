@@ -18,7 +18,7 @@ A few names are kept as they are in both languages: **Umi** (the app, "sea"), **
 - **Views**: scroll (or use the arrow keys) to move between the *Overview* from the sky, the surface, and the *Lakebed*.
 - **Nagi mode**: the water swells once and settles, every buoy except the three to do now sinks out of sight, and the camera frames the three that remain.
 - **Dive (focus timer)**: dive under one task's buoy (25 min, 50 min or no limit); depth follows the time. Stray thoughts become *bubble notes* that rise to the surface. When you surface, take a *decompression* break of one fifth of the dive, then float the bubble notes as tasks or drop them.
-- **Sky and water**: the light follows the time of day (morning, day, evening, night with a moon). The weather follows how busy you are: today's tide (estimates ÷ the hours you can use in a day) + 0.5 × the next 7 days + 0.25 × late tasks + 0.12 × urgent tasks → Nagi < Ripples < Waves < Rough < Storm.
+- **Sky and water**: the light follows the time of day (morning, day, evening, night with a moon). The weather follows how busy you are: every open task adds its weight × how close its deadline is (no slack left = strongest, a week away = weak, no due date ≈ 0), so more tasks, heavier tasks and closer deadlines all raise it → Nagi < Ripples < Waves < Rough < Storm. The header gauge shows the same five steps.
 - **Alerts**: a small fin circles a risky must-do task and nudges it now and then.
 - **Quick entry**: type `tomorrow 3pm stats homework #school 1h must heavy weekly` (or the Japanese 「明日15時 統計の課題 #大学 1時間 必須 重い 毎週」) and the date, time, area, estimate, type, weight and repeat are read from it.
 

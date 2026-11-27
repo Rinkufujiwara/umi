@@ -1,6 +1,6 @@
 // Saving and computing tasks (shares the umi.v1 storage key with the table page, list.html)
-import { ymd } from './parse.js?v=47';
-import { t as tr, getLang, md } from './i18n.js?v=47';
+import { ymd } from './parse.js?v=48';
+import { t as tr, getLang, md } from './i18n.js?v=48';
 
 export const KEY = 'umi.v1';
 export const COLORS = ['#2f6f8f', '#6a5acd', '#c0812c', '#3c8d5a', '#b4566e', '#4f7cc4', '#8a7a3c', '#3f8f8b'];
@@ -185,6 +185,26 @@ export function placeOf(t, budget = 300, areaName = '') {
   const v = s == null ? 0.95 : Math.min(0.93, 0.93 * s / (s + SLACK_HALF));
   const size = 0.8 + 0.5 * Math.min(1, Math.max(0, Math.log(c.hours / 0.25) / Math.log(80 / 0.25)));
   return { u, v, size, uRaw };
+}
+
+// ---------------------------------------------------------------- busyness (the header gauge and the lake's weather)
+// Every open task adds weight × deadline pressure, so more tasks, heavier tasks and closer deadlines all raise it.
+//   weight   = 0.4 + 0.6 × u            (u: where it floats, shore 0 → offshore 1)
+//   pressure = 1.3 if no slack is left (overdue or due now), else 1 / (1 + slack / 1.5); 0.05 without a due date
+//   busy     = Σ weight × pressure ÷ BUSY_REF
+// BUSY_REF = 4.6 is a day with about four tasks due today, some heavy, and a few more due soon ("Waves", 1.0).
+export const BUSY_REF = 4.6;
+export function busyness(list, budget = 300, areaOf = () => '') {
+  let sum = 0, n = 0, wSum = 0, kSum = 0;
+  for (const t of list) {
+    if (t.done) continue;
+    const c = compute(t, budget, areaOf(t)), p = placeOf(t, budget, areaOf(t));
+    const w = 0.4 + 0.6 * p.u;
+    const k = c.slack == null ? 0.05 : c.slack <= 0 ? 1.3 : 1 / (1 + c.slack / 1.5);
+    sum += w * k;
+    if (k >= 0.25) { n++; wSum += w; kSum += k; } // "soon": within about four days of slack
+  }
+  return { score: sum / BUSY_REF, n, weight: n ? wSum / n : 0, pressure: n ? kSum / n : 0 };
 }
 
 // Order to do things in: by W, largest first

@@ -33,7 +33,7 @@ const en = {
   'map.table': 'Table view', 'map.calmnote': 'Nagi: showing only the three for now',
   'map.sub': 'Afloat <b>{n}</b> (today {today}{urg} · this week {week} · someday {some}){late}  Sunk in the last 7 days: <b>{sunk}</b>',
   'map.urg': ' · <span class="late">{n} urgent</span>', 'map.late': ' · <span class="late">{n} late</span>',
-  'busy.reason': "Today's tide {a}% + next 7 days {b}%×0.5 + late {c}×0.25 + urgent {d}×0.12",
+  'busy.reason': '{n} tasks due soon · average weight {w}% · deadline pressure {k}% · {l} late',
   // sections
   'sec.surface': 'Surface', 'sec.shallows': 'Shallows', 'sec.depths': 'Depths',
   // toasts
@@ -120,7 +120,7 @@ const ja = {
   'map.table': '表で見る', 'map.calmnote': '凪：いまの3件だけ表示中',
   'map.sub': '浮かんでいる <b>{n}件</b>（今日 {today}{urg}・今週 {week}・いつか {some}）{late}　この7日で <b>{sunk}件</b> 沈めた',
   'map.urg': '・<span class="late">急ぎ {n}</span>', 'map.late': '・<span class="late">遅れ {n}</span>',
-  'busy.reason': '今日の潮位 {a}% ＋ 7日先の詰まり {b}%×0.5 ＋ 遅れ {c}件×0.25 ＋ 急ぎ {d}件×0.12',
+  'busy.reason': '近いタスク {n}件・重さの平均 {w}%・期限の迫り具合 {k}%・遅れ {l}件',
   'sec.surface': '水面', 'sec.shallows': '浅瀬', 'sec.depths': '深み',
   'toast.sunk': '「{t}」を沈めました', 'toast.deleted': '「{t}」を削除しました', 'toast.later': '「{t}」を遠くへ（{d}）',
   'toast.lighter': '「{t}」を浅瀬へ（重さ：{w}）', 'toast.moved': '「{t}」を{s}へ',

@@ -1,12 +1,12 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=47';
-import { parseQuick } from './parse.js?v=47';
-import * as St from './store.js?v=47';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=47';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=47';
-import { requestPlan } from './nagi.js?v=47';
+import { createHome } from './home-scene.js?v=48';
+import { parseQuick } from './parse.js?v=48';
+import * as St from './store.js?v=48';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=48';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=48';
+import { requestPlan } from './nagi.js?v=48';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -107,19 +107,16 @@ function render() {
   $('mapSub').innerHTML = (calm ? `<span class="calmnote">${tr('map.calmnote')}</span>　` : '') + tr('map.sub', { n: L.length, today, urg: urg ? tr('map.urg', { n: urg }) : '',
     week: cnt('shallows'), some: cnt('depths'), late: late ? tr('map.late', { n: late }) : '', sunk });
   // busyness → the lake's weather and waves
-  // base: today's tide (estimates ÷ hours per day), plus the next 7 days' load, late tasks and urgent tasks
-  const in7 = St.plusDays(6);
-  const week = L.filter(t => t.due && t.due <= in7).reduce((s, t) => s + (t.est || 30), 0) / (7 * B);
-  const urgNotLate = L.filter(t => urgent(t) && !(t.due && t.due < St.todayStr())).length;
-  const busy = plan / B + 0.5 * week + 0.25 * late + 0.12 * urgNotLate;
+  const bz = St.busyness(L, B, areaName), busy = bz.score; // count × weight × how close the deadlines are (store.js)
   const kind = busy < 0.55 ? 'calm' : busy < 0.85 ? 'ripple' : busy < 1.15 ? 'waves' : busy < 1.5 ? 'rough' : 'storm';
-  Env.setBusy(kind, busy, tr('busy.reason', { a: Math.round(plan / B * 100), b: Math.round(week * 100), c: late, d: urgNotLate }));
+  const busyWhy = tr('busy.reason', { n: bz.n, w: Math.round(bz.weight * 100), k: Math.round(Math.min(1, bz.pressure) * 100), l: late });
+  Env.setBusy(kind, busy, busyWhy);
   // The gauge shows how busy you are: the same score that sets the lake's weather, in five steps (Nagi → Storm).
   // Today's hours stay in the line under it and in the tooltip.
   const KINDS = ['calm', 'ripple', 'waves', 'rough', 'storm'], lvl = KINDS.indexOf(kind);
   const zero = estLabel(0) || tr('est.m', { m: 0 });
   $('tide').className = `tide busy-${kind}` + (over ? ' over' : '');
-  $('tide').title = `${tr('busy.label')} ${Math.round(busy * 100)}% — ${tr('busy.reason', { a: Math.round(plan / B * 100), b: Math.round(week * 100), c: late, d: urgNotLate })} · ${tr('busy.done', { t: estLabel(doneToday) || estLabel(0) || '0' })}`;
+  $('tide').title = `${tr('busy.label')} ${Math.round(busy * 100)}% — ${busyWhy} · ${tr('busy.done', { t: estLabel(doneToday) || estLabel(0) || '0' })}`;
   $('tide').innerHTML = `<div class="tl"><span>${tr('busy.label')}</span> <b>${tr('weather.' + kind)}</b><span class="rest">${tr('tide.leftOf', { t: estLabel(plan) || zero, b: estLabel(B) })}</span></div>`
     + `<div class="meter" role="meter" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${lvl + 1}" aria-label="${esc(tr('busy.label'))}">${KINDS.map((k, i) => `<i class="${i <= lvl ? 'on' : ''}"></i>`).join('')}</div>`;
 

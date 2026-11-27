@@ -731,6 +731,14 @@ export function createHome(canvas) {
     const m = new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false });
     const p = new THREE.Points(g, m); scene.add(p); return p;
   })();
+  // Stars stay in the sky but are left out of the water's reflection: reflected stars looked like the buoys' white lamps
+  {
+    const reflect = water.onBeforeRender;
+    water.onBeforeRender = function (...args) {
+      const shown = stars.visible; stars.visible = false;
+      try { reflect.apply(this, args); } finally { stars.visible = shown; }
+    };
+  }
   function setTime(date, lat, lon) {
     if (lat == null || lon == null) { lat = 37.9; lon = -date.getTimezoneOffset() / 4; } // no location: estimate the longitude from the time zone
     const pos = SunCalc.getPosition(date, lat, lon);
