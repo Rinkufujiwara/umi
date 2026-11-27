@@ -644,3 +644,19 @@ html[data-night="1"] .pop .nagiwhy b { color: #9fd6dc; }
 /* while a buoy is being dragged: a grabbing cursor, and no text selection or page scrolling */
 body.dragging, body.dragging #scene { cursor: grabbing !important; user-select: none; }
 #scene { touch-action: none; }
+
+/* busyness meter (replaces the tide bar): five steps from Nagi to Storm, filled up to the current one */
+.tide .tl { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.tide .tl .rest { margin-left: 10px; color: var(--sub); }
+.tide .meter { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 5px; }
+.tide .meter i { height: 5px; border-radius: 3px; background: rgba(22,48,58,.1); transition: background .4s; }
+.tide .meter i.on:nth-child(1) { background: #8cc7c4; }
+.tide .meter i.on:nth-child(2) { background: #6aa9ad; }
+.tide .meter i.on:nth-child(3) { background: #4f8f9a; }
+.tide .meter i.on:nth-child(4) { background: #d98a5f; }
+.tide .meter i.on:nth-child(5) { background: var(--must); }
+.tide.busy-rough b, .tide.busy-storm b { color: #c0603f; }
+html[data-night="1"] .tide .meter i { background: rgba(255,255,255,.14); }
+html[data-night="1"] .tide .meter i.on:nth-child(1) { background: #8cc7c4; }
+html[data-night="1"] .tide .meter i.on:nth-child(2) { background: #6aa9ad; }
+html[data-night="1"] .tide .meter i.on:nth-child(3) { background: #5fa3ad; }

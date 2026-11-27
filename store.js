@@ -1,6 +1,6 @@
 // Saving and computing tasks (shares the umi.v1 storage key with the table page, list.html)
-import { ymd } from './parse.js?v=45';
-import { t as tr, getLang, md } from './i18n.js?v=45';
+import { ymd } from './parse.js?v=46';
+import { t as tr, getLang, md } from './i18n.js?v=46';
 
 export const KEY = 'umi.v1';
 export const COLORS = ['#2f6f8f', '#6a5acd', '#c0812c', '#3c8d5a', '#b4566e', '#4f7cc4', '#8a7a3c', '#3f8f8b'];

@@ -1,12 +1,12 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=45';
-import { parseQuick } from './parse.js?v=45';
-import * as St from './store.js?v=45';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=45';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=45';
-import { requestPlan } from './nagi.js?v=45';
+import { createHome } from './home-scene.js?v=46';
+import { parseQuick } from './parse.js?v=46';
+import * as St from './store.js?v=46';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=46';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=46';
+import { requestPlan } from './nagi.js?v=46';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -113,9 +113,14 @@ function render() {
   const busy = plan / B + 0.5 * week + 0.25 * late + 0.12 * urgNotLate;
   const kind = busy < 0.55 ? 'calm' : busy < 0.85 ? 'ripple' : busy < 1.15 ? 'waves' : busy < 1.5 ? 'rough' : 'storm';
   Env.setBusy(kind, busy, tr('busy.reason', { a: Math.round(plan / B * 100), b: Math.round(week * 100), c: late, d: urgNotLate }));
-  $('tide').className = 'tide' + (over ? ' over' : '');
+  // The gauge shows how busy you are: the same score that sets the lake's weather, in five steps (Nagi → Storm).
+  // Today's hours stay in the line under it and in the tooltip.
+  const KINDS = ['calm', 'ripple', 'waves', 'rough', 'storm'], lvl = KINDS.indexOf(kind);
   const zero = estLabel(0) || tr('est.m', { m: 0 });
-  $('tide').innerHTML = `<span class="long">${tr('tide.today')}</span>${tr('tide')} <b>${estLabel(plan) || zero}</b> ／ ${estLabel(B)}　<span class="rest">${over ? tr('tide.over', { t: estLabel(plan - B) }) : tr('tide.left', { t: estLabel(B - plan) || zero })}</span><div class="bar"><i style="width:${Math.min(100, plan / B * 100)}%"></i></div>`;
+  $('tide').className = `tide busy-${kind}` + (over ? ' over' : '');
+  $('tide').title = `${tr('busy.label')} ${Math.round(busy * 100)}% — ${tr('busy.reason', { a: Math.round(plan / B * 100), b: Math.round(week * 100), c: late, d: urgNotLate })}`;
+  $('tide').innerHTML = `<div class="tl"><span>${tr('busy.label')}</span> <b>${tr('weather.' + kind)}</b><span class="rest">${tr('tide')} ${estLabel(plan) || zero} ／ ${estLabel(B)}</span></div>`
+    + `<div class="meter" role="meter" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${lvl + 1}" aria-label="${esc(tr('busy.label'))}">${KINDS.map((k, i) => `<i class="${i <= lvl ? 'on' : ''}"></i>`).join('')}</div>`;
 
   // today's priorities (only three in Nagi mode)
   const ranked = rank(L.filter(t => secOf(t) === 'surface'));

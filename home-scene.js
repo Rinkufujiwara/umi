@@ -697,13 +697,14 @@ export function createHome(canvas) {
   // ---------------------------------------------------------------- time of day (the real sun height via SunCalc)
   const PHASE = {
     night: { top: 0x15274a, bot: 0x3a5274, fog: 0x2e4560 },
-    twilight: { top: 0x4a5c82, bot: 0xe2a487, fog: 0x8a8aa0 },
-    golden: { top: 0x8db0cd, bot: 0xf2d2ac, fog: 0xd9ccbd }
+    twilight: { top: 0x5b5f8e, bot: 0xf2925a, fog: 0xc49070 },  // dusk: orange at the horizon under a violet sky
+    golden: { top: 0x9db4cf, bot: 0xf6b77e, fog: 0xe6c3a0 }     // late afternoon: warm, orange-gold
   };
   let sunAlt = 30;
 
   // Moon: so the lake and forest look bluish at night. Placed in the upper sky visible from the home camera
-  const moonDir = new THREE.Vector3(-0.6, 0.14, -1).normalize(); // local; drawn on the right after the mirror
+  // in the open sky between the greeting and the tide box, above the far mountains (local x; drawn mirrored)
+  const moonDir = new THREE.Vector3(0.05, 0.215, -1).normalize();
   const moon = (() => {
     const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
     const halo = g.createRadialGradient(128, 128, 20, 128, 128, 128);
@@ -715,7 +716,7 @@ export function createHome(canvas) {
     g.fillStyle = 'rgba(170,185,210,.25)'; // faint markings
     for (const [x, y, r] of [[118, 120, 6], [136, 132, 5], [126, 140, 3], [140, 116, 3]]) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, fog: false }));
-    sp.scale.setScalar(420); sp.position.copy(moonDir).multiplyScalar(2000); sp.renderOrder = -1; scene.add(sp); return sp;
+    sp.scale.setScalar(300); sp.position.copy(moonDir).multiplyScalar(2000); sp.renderOrder = -1; scene.add(sp); return sp;
   })();
   const moonLight = new THREE.DirectionalLight(0xbcd0ff, 0);
   moonLight.position.copy(moonDir).multiplyScalar(400); scene.add(moonLight);
@@ -918,7 +919,7 @@ export function createHome(canvas) {
     fog.near = lerp(lerp(120, 20, wx.fog), 2, inside); fog.far = lerp(lerp(1250, 240, wx.fog + wx.rain * 0.3), cam.uf, inside);
     scene.background = inside > 0.5 ? fog.color : null;
     sky.visible = inside < 0.95;
-    const day = sstep(-6, 12, sunAlt);
+    const day = sstep(-9, 9, sunAlt); // lighting: stays brighter into dusk
     hemi.intensity = lerp(0.95, lerp(1.5, 1.1, grey), day);
     hemi.color.set(0xa9bfe3).lerp(tmpC.set(0xdbe9f2), day);
     // Moon: only at night; moonlight keeps things visible
