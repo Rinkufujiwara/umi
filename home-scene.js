@@ -768,9 +768,9 @@ export function createHome(canvas) {
     const frontZ = Math.max(...pts.map(p => p.z));
     tmpCam.fov = camera.fov; tmpCam.aspect = camera.aspect; tmpCam.near = 0.5; tmpCam.far = 3000; tmpCam.updateProjectionMatrix();
     // frame: the area the dashboard does not cover (right of the left column, below the top panels); center the buoys in it
-    const W = innerWidth, H = innerHeight;
-    const ins = { left: insets.left, right: insets.right, top: insets.top, bottom: Math.max(insets.bottom, H * 0.06) };
-    const sx0 = ins.left / W * 2 - 1, sx1 = (W - ins.right) / W * 2 - 1, sy1 = 1 - ins.top / H * 2, sy0 = 1 - (H - ins.bottom) / H * 2;
+    const SW = innerWidth, SH = innerHeight; // screen size (W is the mirror helper)
+    const ins = { left: insets.left, right: insets.right, top: insets.top, bottom: Math.max(insets.bottom, SH * 0.06) };
+    const sx0 = ins.left / SW * 2 - 1, sx1 = (SW - ins.right) / SW * 2 - 1, sy1 = 1 - ins.top / SH * 2, sy0 = 1 - (SH - ins.bottom) / SH * 2;
     const tanV = Math.tan(THREE.MathUtils.degToRad(tmpCam.fov / 2));
     // try pitches from shallow to steep and use one where the camera stays above the water and behind the nearest buoy
     let best = null;
