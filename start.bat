@@ -1,5 +1,5 @@
 @echo off
-rem Umi（3D）を開く。サーバーが動いていなければ起動してから、ブラウザで開く
+rem Opens Umi (3D). Starts the local server first if it is not running, then opens the browser.
 cd /d "%~dp0"
 powershell -NoProfile -Command "try { (New-Object Net.Sockets.TcpClient('127.0.0.1', 8835)).Close(); exit 0 } catch { exit 1 }"
 if errorlevel 1 (

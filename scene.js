@@ -1,4 +1,4 @@
-// 湖・山・ヨット・空・天気・水の中を、three.js の3Dで描く
+// The lake, mountains, yacht, sky, weather and underwater world, drawn in 3D with three.js (the older standalone scene)
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { Water } from 'three/addons/objects/Water.js';
@@ -59,7 +59,7 @@ function heightAt(x, z) {
   }
   const e = r - rl;
   const foot = Math.min(e * 0.05, 18) + 14 * fbm(x * 0.004, z * 0.004, 3) * sstep(0, 200, e);
-  // 奥（湖の向こう）の山を高く
+  // raise the mountains at the back (across the lake)
   const front = sstep(0.2, -0.9, Math.sin(ang)) * 0.6 + 0.55;
   const m = sstep(150, 900, e);
   const wx2 = x + (fbm(x * 0.0008, z * 0.0008, 3) - 0.5) * 900, wz2 = z + (fbm(x * 0.0008 + 9, z * 0.0008 + 4, 3) - 0.5) * 900;
@@ -79,11 +79,11 @@ const SEASON = {
 function colorFor(season, x, y, z, ny, snowShift) {
   const S = SEASON[season];
   const n = fbm(x * 0.02 + 11, z * 0.02 + 7, 3), n2 = vnoise(x * 0.11, z * 0.11);
-  if (y < -0.6) { // 湖底の砂
+  if (y < -0.6) { // lake bed sand
     const k = 0.85 + 0.25 * n;
     return [0.62 * k, 0.56 * k, 0.43 * k];
   }
-  if (y < 3) return [0.45 + 0.1 * n, 0.42 + 0.08 * n, 0.36 + 0.06 * n]; // 岸の小石
+  if (y < 3) return [0.45 + 0.1 * n, 0.42 + 0.08 * n, 0.36 + 0.06 * n]; // pebbles on the shore
   const rock = [0.34 + 0.12 * n2, 0.32 + 0.1 * n2, 0.30 + 0.09 * n2];
   const vegLine = 260 + 120 * n;
   const steep = sstep(0.82, 0.62, ny);
@@ -186,7 +186,7 @@ water.rotation.x = -Math.PI / 2;
 water.material.uniforms.size.value = 2.2;
 scene.add(water);
 
-// 水の中から見上げた水面
+// the surface seen from underwater
 const surfaceUnder = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.ShaderMaterial({
   uniforms: { uTime: U.time, uN: { value: normalsTex }, uSun: { value: sun }, uBright: { value: 1 },
               uFogC: { value: new THREE.Color() }, uFogD: { value: 0.05 } },
@@ -231,7 +231,7 @@ const PATCH = { x0: -80, x1: 80, z0: -110, z1: 50 };
   }
   terGeo.computeVertexNormals();
 }
-// 地形の陰（くぼみの暗さと、太陽に対する山の影）を頂点に焼きこむ
+// bake terrain shading (darker hollows and mountain shadows from the sun) into the vertices
 const terShade = new Float32Array(terGeo.attributes.position.count);
 function bakeTerrainLight() {
   const N = TER_SEG + 1, cell = TER_SIZE / TER_SEG, pos = terGeo.attributes.position;
@@ -261,7 +261,7 @@ const terrain = new THREE.Mesh(terGeo, withCaustics(new THREE.MeshStandardMateri
 terrain.receiveShadow = false;
 scene.add(terrain);
 
-// 近くの湖底（細かい砂紋）
+// lake bed nearby (fine sand ripples)
 const patchGeo = new THREE.PlaneGeometry(PATCH.x1 - PATCH.x0, PATCH.z1 - PATCH.z0, 220, 220);
 patchGeo.rotateX(-Math.PI / 2);
 {
@@ -307,7 +307,7 @@ function stepColors(dt) { // dt: real seconds
 
 bakeTerrainLight();
 
-// 岩
+// rocks
 {
   const rockMat = withCaustics(new THREE.MeshStandardMaterial({ color: 0x5c5a52, roughness: 1 }), true);
   for (let i = 0; i < 34; i++) {
@@ -327,7 +327,7 @@ bakeTerrainLight();
   }
 }
 
-// 水草
+// water plants
 const GRASS_N = 1400;
 const grassGeo = new THREE.PlaneGeometry(0.07, 1, 1, 6); grassGeo.translate(0, 0.5, 0);
 const grassMat = new THREE.MeshStandardMaterial({ color: 0x48602e, roughness: 0.8, side: THREE.DoubleSide });
@@ -377,7 +377,7 @@ const yacht = new THREE.Group();
   const hullMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.08, side: THREE.DoubleSide });
   const hull = new THREE.Mesh(hullGeo, hullMat);
 
-  // 甲板
+  // deck
   const outline = new THREE.Shape();
   for (let i = 0; i <= 40; i++) { const u = i / 40; const p = [halfW(u) * 0.985, (u - 0.5) * L]; i ? outline.lineTo(...p) : outline.moveTo(...p); }
   for (let i = 40; i >= 0; i--) { const u = i / 40; outline.lineTo(-halfW(u) * 0.985, (u - 0.5) * L); }
@@ -387,7 +387,7 @@ const yacht = new THREE.Group();
   deckGeo.computeVertexNormals();
   const deck = new THREE.Mesh(deckGeo, new THREE.MeshStandardMaterial({ color: 0xb08a5c, roughness: 0.75, side: THREE.DoubleSide }));
 
-  // 船室
+  // cabin
   const cabin = new THREE.Mesh(new RoundedBoxGeometry(2.1, 0.62, 3.3, 4, 0.22), new THREE.MeshPhysicalMaterial({ color: 0xf2f3f4, roughness: 0.3, clearcoat: 0.8 }));
   cabin.position.set(0, F + 0.3, -0.7);
   const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x0c1a24, roughness: 0.05, metalness: 0.2, clearcoat: 1 });
@@ -395,7 +395,7 @@ const yacht = new THREE.Group();
     const g = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.18, 2.2), glassMat);
     g.position.set(sx * 1.06, F + 0.38, -0.7); yacht.add(g);
   }
-  // 手すり
+  // railing
   const metal = new THREE.MeshStandardMaterial({ color: 0xc9ced3, metalness: 0.95, roughness: 0.25 });
   const railPts = [];
   for (let i = 2; i <= 36; i++) { const u = i / 40; railPts.push(new THREE.Vector3(halfW(u) * 0.93, sheer(u) + 0.6, (u - 0.5) * L)); }
@@ -408,14 +408,14 @@ const yacht = new THREE.Group();
       st.position.set(p.x * sx, p.y - 0.3, p.z); yacht.add(st);
     }
   }
-  // マストとブーム
+  // mast and boom
   const mastZ = 0.9, mastH = 13.5;
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, mastH, 12), metal);
   mast.position.set(0, F + mastH / 2, mastZ);
   const boomL = 4.2;
   const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, boomL, 10), metal);
   boom.rotation.x = Math.PI / 2; boom.position.set(0, F + 1.45, mastZ - boomL / 2);
-  // 帆（ふくらみのある面）
+  // sail (a curved surface)
   const sailMat = new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.85, side: THREE.DoubleSide });
   const main = new ParametricGeometry((u, v, t) => {
     const foot = boomL * 0.97, h0 = F + 1.5, H = mastH - 1.0;
@@ -434,13 +434,13 @@ const yacht = new THREE.Group();
     t.copy(p);
   }, 24, 32);
   const mainS = new THREE.Mesh(main, sailMat), jibS = new THREE.Mesh(jib, sailMat);
-  // 索具
+  // rigging
   const wire = new THREE.LineBasicMaterial({ color: 0x2b2f33 });
   const top = new THREE.Vector3(0, F + mastH, mastZ);
   const wires = [[top, new THREE.Vector3(0, sheer(1) + 0.1, L / 2)], [top, new THREE.Vector3(0, F + 0.4, -L / 2 + 0.1)],
                  [top, new THREE.Vector3(B / 2 * 0.95, F + 0.05, mastZ)], [top, new THREE.Vector3(-B / 2 * 0.95, F + 0.05, mastZ)]];
   for (const [a, b] of wires) yacht.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), wire));
-  // キール
+  // keel
   const keel = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.5, 1.4), new THREE.MeshStandardMaterial({ color: 0x0b1420, roughness: 0.5 }));
   keel.position.set(0, -D - 0.6, 0.1);
   yacht.add(hull, deck, cabin, mast, boom, mainS, jibS, keel);
@@ -589,7 +589,7 @@ const flakeMat = new THREE.ShaderMaterial({
 const flakes = new THREE.Points(flakeGeo, flakeMat); flakes.frustumCulled = false;
 scene.add(flakes);
 
-// 花びら・落ち葉
+// petals and falling leaves
 const LEAF_N = 260;
 const leafGeo = new THREE.PlaneGeometry(0.07, 0.05);
 const leaves = new THREE.InstancedMesh(leafGeo, new THREE.MeshStandardMaterial({ roughness: 0.7, side: THREE.DoubleSide }), LEAF_N);
@@ -740,7 +740,7 @@ function updateWeather(dt, realDt) {
   flakeMat.uniforms.uAmt.value = wx.snow; flakeMat.uniforms.uWind.value = wx.wind;
   shaftMat.uniforms.uI.value = 1 - wx.cloud * 0.8;
   surfaceUnder.material.uniforms.uBright.value = 1 - wx.cloud * 0.6;
-  // 空の映り込みは、天気が落ち着いてから作り直す
+  // rebuild the sky reflection once the weather has settled
   envTimer -= dt;
   const key = [wx.cloud, wx.fog].map(v => v.toFixed(2)).join();
   if (envTimer <= 0 && key !== lastEnvKey) { refreshEnv(); lastEnvKey = key; envTimer = 1.2; }
@@ -791,12 +791,12 @@ function frame(now) {
 
   updateWeather(dt, realDt);
   stepColors(realDt);
-  // 雷
+  // thunder
   flashV = Math.max(0, flashV - dt * 3);
   if (wx.thunder > 0.5) { nextBolt -= dt; if (nextBolt <= 0) { nextBolt = 4 + Math.random() * 7; flashV = 1; } }
   Env.flash = flashV;
 
-  // ヨット：波にゆられる
+  // yacht: rocks on the waves
   const heel = 0.05 + wx.wind * 0.12;
   yacht.position.y = -0.08 + Math.sin(clock * 0.8) * 0.09 * (1 + wx.wind);
   yacht.rotation.set(Math.sin(clock * 0.6) * 0.015 * (1 + wx.wind), 1.15, heel + Math.sin(clock * 0.5) * 0.025 * (1 + wx.wind));
@@ -808,7 +808,7 @@ function frame(now) {
   const isUnder = P >= SPLIT1;
 
   if (inSplit) {
-    // 下半分＝水の中を別に描いておき、上半分＝水の上と合成する
+    // draw the lower half (underwater) separately and composite it with the upper half (above water)
     const posU = pos.clone(); posU.y = Math.min(pos.y, -0.4);
     placeCamera(camOther, posU, look);
     configure(true);

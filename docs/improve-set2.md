@@ -1,43 +1,43 @@
-# 改善 第2セット（2026-11-27）
+# Improvement set 2 (2026-11-27)
 
-戻す地点：タグ `restore/before-set2`（コミット a38d639）。第1セットの前に戻すときは `restore/before-set1`。
+Restore point: tag `restore/before-set2` (commit a38d639). To go back before set 1, use `restore/before-set1`.
 
-## 見つけた30件（◎＝今回直す15件）
+## The 30 issues found (◎ = one of the 15 fixed this round)
 
-第1セットで見送った15件（#16〜30）を見直し、スマホ幅（375px）と本番のサイトで新しく15件を見つけた。
+The 15 items left from set 1 (#16–30) were reviewed again, and 15 new ones were found at phone width (375px) and on the live site.
 
-| # | 種類 | 内容 | 今回 |
+| # | Kind | Issue | Fixed |
 |---|---|---|---|
-| 1 | 不具合 | スマホでは左の列が消えるので、一覧・湖底・ダイブへ行けない（スクロールしか手がない） | ◎ |
-| 2 | 不具合 | スマホでログイン・湖のようす（設定）に行けない | ◎ |
-| 3 | 見た目 | スマホで「タスクを追加」が2行目に落ちる | ◎ |
-| 4 | 見た目 | スマホで泡メモの入力欄の案内文が長くて切れる | ◎ |
-| 5 | 操作 | 左下の「湖底 36 ↓」を押しても何も起きない | ◎ |
-| 6 | わかりやすさ | ブイの長押しで沈められることが、どこにも書いていない | ◎ |
-| 7 | 操作 | ダイブを始めるキーがない（第1の#29） | ◎ |
-| 8 | わかりやすさ | 「湖のようす」のメニューに凪モードがない（第1の#16） | ◎ |
-| 9 | 気づけない | 減圧中、タブの名前に残り時間が出ない | ◎ |
-| 10 | 見た目 | 夜、減圧の画面の泡メモの線が見えにくい（第1の#30） | ◎ |
-| 11 | データ | 潜った記録がずっと増え続ける（第1の#26） | ◎ |
-| 12 | 操作 | 「急ぎ 2件」を押しても何も起きない（どれが急ぎか見たい） | ◎ |
-| 13 | 言葉 | 深さの「12m」だけでは何の数字かわからない（第1の#24） | ◎ |
-| 14 | 操作 | 一覧・湖底から潜ると、ホームへ戻るのを約2秒待つ（第1の#22） | ◎ |
-| 15 | 見た目 | 優先タスクのパネルの下が空く（第1の#18） | ◎ |
-| 16 | 同期 | ダイブ中の状態は、この端末だけ（第1の#17） | |
-| 17 | 一覧 | 表で見る画面（list.html）に、潜った時間が出ない（第1の#19） | |
-| 18 | 速さ | 凪の枠の計算で毎回ベクトルを作る（第1の#20） | |
-| 19 | 情報 | 幅1180px以下で「あと◯時間」が消える（第1の#21） | |
-| 20 | 不具合 | ?view= 付きで開いてダイブ途中から再開すると、カメラが二度動く（第1の#23） | |
-| 21 | 見た目 | 浅いところで水面の上が少し透ける（第1の#25。カメラ位置の修正で軽くなった） | |
-| 22 | 一覧 | 表で見る画面は凪モードを見ない（第1の#27） | |
-| 23 | 見た目 | 低い画面だと、凪の3つの名札が上のパネルに近い（第1の#28） | |
-| 24 | 確認 | 初めてのダイブで、通知の許可をいきなり聞く | |
-| 25 | 見た目 | スマホで湖の断面（下半分）が広く、上が詰まって見える | |
-| 26 | 操作 | 潜っている間の「浮上する」に確かめがない（押し間違い） | |
-| 27 | 見た目 | スマホの名札が断面の線にかかることがある | |
-| 28 | 操作 | ポップアップの「一覧で編集」で3Dの画面を離れてしまう | |
-| 29 | 情報 | 湖底の一覧に、潜った時間の合計が出ない | |
-| 30 | 配慮 | 夜のダイブ設定の select の矢印が見えにくい | |
+| 1 | Bug | On phones the left column is hidden, so there was no way to reach the Overview, Lakebed or Dive (only scrolling) | ◎ |
+| 2 | Bug | On phones there was no way to sign in or open Lake & settings | ◎ |
+| 3 | Look | On phones "Add a task" dropped to a second line | ◎ |
+| 4 | Look | On phones the bubble note placeholder was cut off | ◎ |
+| 5 | Controls | Pressing "Lakebed 36 ↓" at the bottom left did nothing | ◎ |
+| 6 | Clarity | Nothing said that a long-press on a buoy sinks it | ◎ |
+| 7 | Controls | No key to start a dive (set 1 #29) | ◎ |
+| 8 | Clarity | The "Lake & settings" menu had no Nagi mode (set 1 #16) | ◎ |
+| 9 | Missed signal | The tab title did not show the time left in the break | ◎ |
+| 10 | Look | At night the bubble note lines were hard to see (set 1 #30) | ◎ |
+| 11 | Data | Dive records grew forever (set 1 #26) | ◎ |
+| 12 | Controls | Pressing "2 urgent" did nothing (you want to see which ones) | ◎ |
+| 13 | Wording | "12m" alone did not say what the number was (set 1 #24) | ◎ |
+| 14 | Controls | Diving from the Overview or Lakebed waited about 2 s for the trip home (set 1 #22) | ◎ |
+| 15 | Look | The priorities panel had empty space at the bottom (set 1 #18) | ◎ |
+| 16 | Sync | An in-progress dive lives on one device only (set 1 #17) | |
+| 17 | Table page | The table page (list.html) does not show dive time (set 1 #19) | |
+| 18 | Speed | The Nagi framing creates vectors every time (set 1 #20) | |
+| 19 | Information | Below 1180px "time left" disappears (set 1 #21) | |
+| 20 | Bug | Opening with ?view= while resuming a dive moves the camera twice (set 1 #23) | |
+| 21 | Look | In shallow water the scenery above shows through a little (set 1 #25; lessened by the camera change) | |
+| 22 | Table page | The table page ignores Nagi mode (set 1 #27) | |
+| 23 | Look | On short screens Nagi's three tags come close to the top panels (set 1 #28) | |
+| 24 | Confirm | The first dive asks for notification permission without warning | |
+| 25 | Look | On phones the lake cut-away (bottom half) is large and the top feels cramped | |
+| 26 | Controls | "Surface" during a dive has no confirmation (mis-taps) | |
+| 27 | Look | On phones a tag sometimes overlaps the cut-away line | |
+| 28 | Controls | "Edit in table" in the card leaves the 3D page | |
+| 29 | Information | The lakebed list does not show total dive time | |
+| 30 | Accessibility | The arrow of the select in the night-time Dive setup is hard to see | |
 
-## 15件の選び方
-スマホで「行けない・押せない」（#1〜3）を最優先。次に、押しても反応しない所（#5・#12）と気づけない所（#6・#9）、最後に小さな見た目とデータの整理。
+## How the 15 were picked
+First the things phones could not reach or press at all (#1–3). Then places where pressing did nothing (#5, #12) and things you could not notice (#6, #9), and last small visual and data clean-ups.

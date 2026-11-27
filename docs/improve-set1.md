@@ -1,41 +1,41 @@
-# 改善 第1セット（2026-11-27）
+# Improvement set 1 (2026-11-27)
 
-戻す地点：タグ `restore/before-set1`（コミット 6293a3d）。
+Restore point: tag `restore/before-set1` (commit 6293a3d).
 
-## 見つけた30件（◎＝今回直す15件）
+## The 30 issues found (◎ = one of the 15 fixed this round)
 
-| # | 種類 | 内容 | 今回 |
+| # | Kind | Issue | Fixed |
 |---|---|---|---|
-| 1 | 不具合 | 幅1100px以下で「いまの一つ」のパネルが消える（いちばん大事なカード） | ◎ |
-| 2 | 不具合 | 凪モードでも「今日の優先タスク」に、沈めて隠したタスクのカードが出る | ◎ |
-| 3 | 不具合 | 凪で沈んでいく途中のブイが、クリック・長押しできる | ◎ |
-| 4 | 見やすさ | ダイブの設定・減圧の画面の後ろが暗くならず、パネルと重なって読みにくい | ◎ |
-| 5 | 機能不足 | ホームからタスクを消せない（削除がない） | ◎ |
-| 6 | 気づけない | 時間を決めたダイブが別のタブで終わっても、気づけない | ◎ |
-| 7 | 気づけない | 減圧（休憩）が終わっても合図がない | ◎ |
-| 8 | 見えない | 潜った時間を記録しているのに、どこにも出ない | ◎ |
-| 9 | 見た目 | 潜っている間、左の列の「ダイブ」に印がつかない | ◎ |
-| 10 | 不具合 | 凪のまま窓の大きさを変えると、3つが画面から外れる | ◎ |
-| 11 | 配慮 | 「動きを減らす」設定でも、カメラの長い移動やうねりがそのまま | ◎ |
-| 12 | 操作 | 減圧の画面を Esc で閉じられない／設定の画面で Enter で潜れない | ◎ |
-| 13 | 操作 | ダイブの「潜る先」がただの長い一覧で、今日のものが探しにくい | ◎ |
-| 14 | わかりやすさ | 一覧（空から）で凪のとき、「浮かんでいる13件」と出るのに3つしか見えない | ◎ |
-| 15 | スマホ | 長押しすると、スマホで文字選択やメニューが出る | ◎ |
-| 16 | 見た目 | 「湖のようす」のメニューに、凪モードのことが出ない | |
-| 17 | 同期 | ダイブ中の状態は、この端末だけ（ほかの端末に引き継げない） | |
-| 18 | 見た目 | 優先タスクのパネルを「いまの一つ」と同じ高さにしたので、下が空く | |
-| 19 | 一覧 | 表で見る画面（list.html）に、潜った時間が出ない | |
-| 20 | 速さ | 凪の枠の計算で、毎回ベクトルを作っている（軽いが無駄） | |
-| 21 | 情報 | 幅1180px以下で「あと◯時間」が消える（説明は title にだけ） | |
-| 22 | 操作 | 一覧から潜ると、ホームへ戻ってから潜るまで約2秒待つ | |
-| 23 | 不具合 | ?view= を付けて開いたうえでダイブ途中から再開すると、カメラが二度動く | |
-| 24 | 言葉 | 深さの「m」は意味が伝わりにくい | |
-| 25 | 見た目 | 浅いところでは、水面の上の山が少し透けて見える | |
-| 26 | データ | t.dives がずっと増え続ける（古い分をまとめていない） | |
-| 27 | 一覧 | 表で見る画面は凪モードを見ない | |
-| 28 | 見た目 | 低い画面だと、凪の3つの名札が上のパネルに近い | |
-| 29 | 操作 | ダイブを始めるキーがない | |
-| 30 | 見た目 | 夜、減圧の画面の泡メモの線が見えにくい | |
+| 1 | Bug | At 1100px and below, "The one for now" disappeared (the most important card) | ◎ |
+| 2 | Bug | In Nagi mode, "Today's priorities" still showed cards for tasks whose buoys were hidden | ◎ |
+| 3 | Bug | Buoys sinking away in Nagi mode could still be clicked or long-pressed | ◎ |
+| 4 | Readability | The Dive setup and break panels had no dimmed backdrop and overlapped the panels | ◎ |
+| 5 | Missing | No way to delete a task from home | ◎ |
+| 6 | Missed signal | A timed dive ending in another tab went unnoticed | ◎ |
+| 7 | Missed signal | No signal when the decompression break ended | ◎ |
+| 8 | Hidden | Dive time was recorded but shown nowhere | ◎ |
+| 9 | Look | The "Dive" item in the left column was not marked while diving | ◎ |
+| 10 | Bug | Resizing the window in Nagi mode pushed the three out of frame | ◎ |
+| 11 | Accessibility | With reduced motion, long camera moves and the swell still played | ◎ |
+| 12 | Controls | Esc did not close the break panel; Enter did not start a dive from setup | ◎ |
+| 13 | Controls | The dive target was one long list; today's tasks were hard to find | ◎ |
+| 14 | Clarity | In the Overview with Nagi on, it said "13 afloat" while only three were visible | ◎ |
+| 15 | Phones | Long-pressing selected text or opened a menu on phones | ◎ |
+| 16 | Look | The "Lake & settings" menu did not mention Nagi mode | |
+| 17 | Sync | An in-progress dive lives on one device only | |
+| 18 | Look | Matching the priorities panel's height to "The one for now" left empty space | |
+| 19 | Table page | The table page (list.html) did not show dive time | |
+| 20 | Speed | The Nagi framing created vectors every time (light, but wasteful) | |
+| 21 | Information | Below 1180px the "time left" text disappeared (only in a tooltip) | |
+| 22 | Controls | Diving from the Overview waited about 2 s for the trip home | |
+| 23 | Bug | Opening with ?view= while resuming a dive moved the camera twice | |
+| 24 | Wording | The "m" for depth did not say much | |
+| 25 | Look | In shallow water the scenery above the surface showed through a little | |
+| 26 | Data | t.dives grew forever (no summary) | |
+| 27 | Table page | The table page ignored Nagi mode | |
+| 28 | Look | On short screens, Nagi's three tags came close to the top panels | |
+| 29 | Controls | No key to start a dive | |
+| 30 | Look | At night, the lines in the break panel's bubble notes were hard to see | |
 
-## 15件の選び方
-動かない・消える（不具合）→ 気づけない・見えない → 操作しづらい、の順。見た目だけのもの、手間が大きいもの（同期など）は次へ回した。
+## How the 15 were picked
+Things that break or disappear (bugs) first, then things you cannot notice or see, then things that are awkward to use. Purely visual items and big jobs (like sync) were left for later.

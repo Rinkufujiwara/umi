@@ -19,7 +19,7 @@ const en = {
   'panel.top': "Today's priorities", 'panel.focus': 'The one for now',
   'empty.others': 'Nothing else.', 'empty.focus': 'Nothing urgent.',
   'btn.sink': 'Sink', 'btn.dive': 'Dive', 'btn.later': 'Tomorrow',
-  'kind.must': 'Must', 'kind.self': 'Own',
+  'kind.must': 'Must', 'kind.self': 'Own', 'tag.urgent': 'urgent',
   'nodue': 'No due date', 'about': '~{t}',
   // lakebed
   'bed': 'Lakebed', 'bed.count': 'Lakebed  {n}', 'bed.hint.title': 'To the lakebed (or scroll down)',
@@ -106,7 +106,7 @@ const ja = {
   'panel.top': '今日の優先タスク', 'panel.focus': 'いまの一つ',
   'empty.others': 'ほかにはありません', 'empty.focus': '急ぐものはありません。',
   'btn.sink': '沈める', 'btn.dive': '潜る', 'btn.later': '明日へ',
-  'kind.must': '必須', 'kind.self': '自主',
+  'kind.must': '必須', 'kind.self': '自主', 'tag.urgent': '急ぎ',
   'nodue': '期限なし', 'about': '約{t}',
   'bed': '湖底', 'bed.count': '湖底　{n}', 'bed.hint.title': '湖底へ（下へスクロールでも）',
   'bed.title': '湖底　これまでに沈めた {n}件', 'bed.sub': '今日 {a}件・この7日 {b}件　／　上へスクロールで水面へ',

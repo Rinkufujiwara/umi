@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>季節がめぐる湖</title>
+<title>A lake through the seasons</title>
 <style>
   :root { --ink: #0f2236; --sub: #4d6176; }
   * { box-sizing: border-box; }
@@ -59,55 +59,55 @@
 </script>
 </head>
 <body>
-<section id="dive" aria-label="湖の水面から、水の中へ潜っていく場面">
+<section id="dive" aria-label="A scene diving from the lake surface into the water">
   <div id="stage">
     <canvas id="scene" aria-hidden="true"></canvas>
     <div class="loading">LOADING</div>
     <div class="top" id="top">
       <div class="copy">
         <p class="eyebrow">SEASONAL LAKE</p>
-        <h1>季節がめぐる湖</h1>
-        <p id="seasonText">いまの季節と天気が、湖に映ります。</p>
+        <h1>A lake through the seasons</h1>
+        <p id="seasonText">The current season and weather show on the lake.</p>
       </div>
-      <div class="env" id="envStatus">現在地の天気を調べています…</div>
+      <div class="env" id="envStatus"></div>
       <div class="ui">
-        <div class="row" role="group" aria-label="季節を選ぶ">
-          <span class="lbl">季節</span>
-          <button data-s="auto">自動</button>
-          <button data-s="spring">春</button>
-          <button data-s="summer">夏</button>
-          <button data-s="autumn">秋</button>
-          <button data-s="winter">冬</button>
+        <div class="row" role="group" aria-label="Pick a season">
+          <span class="lbl">Season</span>
+          <button data-s="auto">Auto</button>
+          <button data-s="spring">Spring</button>
+          <button data-s="summer">Summer</button>
+          <button data-s="autumn">Autumn</button>
+          <button data-s="winter">Winter</button>
         </div>
-        <div class="row" role="group" aria-label="天気を選ぶ">
-          <span class="lbl">天気</span>
-          <button data-w="auto">自動</button>
-          <button data-w="clear">晴れ</button>
-          <button data-w="cloudy">くもり</button>
-          <button data-w="rain">雨</button>
-          <button data-w="snow">雪</button>
-          <button data-w="fog">霧</button>
-          <button data-w="thunder">雷雨</button>
+        <div class="row" role="group" aria-label="Pick the weather">
+          <span class="lbl">Weather</span>
+          <button data-w="auto">Auto</button>
+          <button data-w="calm">Nagi</button>
+          <button data-w="ripple">Ripples</button>
+          <button data-w="waves">Waves</button>
+          <button data-w="rough">Rough</button>
+          
+          <button data-w="storm">Storm</button>
         </div>
       </div>
       <div class="hint">SCROLL ↓</div>
     </div>
-    <div class="cap" data-a="0.10" data-b="0.24"><p class="k">SURFACE</p><h3>水面を抜ける</h3><p>湖の水面を境に、音のない世界に入ります。</p></div>
-    <div class="cap" data-a="0.30" data-b="0.58"><p class="k">DEPTH 5 m</p><h3>光の帯がゆれる</h3><p>水面の波が光を曲げて、帯のような光が差しこみます。</p></div>
-    <div class="cap" data-a="0.72" data-b="1.05"><p class="k">DEPTH 30 m</p><h3>湖底に落ちる、光の網</h3><p>深くなるほど赤い光が先に消え、青だけが残ります。</p></div>
-    <div class="meter" id="meter"><span id="meterDot"></span><span id="meterText">水深 0 m</span></div>
+    <div class="cap" data-a="0.10" data-b="0.24"><p class="k">SURFACE</p><h3>Through the surface</h3><p>Below the surface of the lake, the world goes quiet.</p></div>
+    <div class="cap" data-a="0.30" data-b="0.58"><p class="k">DEPTH 5 m</p><h3>Swaying bands of light</h3><p>Waves on the surface bend the light into shafts.</p></div>
+    <div class="cap" data-a="0.72" data-b="1.05"><p class="k">DEPTH 30 m</p><h3>A net of light on the lake bed</h3><p>The deeper it gets, the sooner red fades, until only blue is left.</p></div>
+    <div class="meter" id="meter"><span id="meterDot"></span><span id="meterText">Depth 0 m</span></div>
   </div>
 </section>
-<div class="end">ここで終わりです。上に戻ると、水面へ浮かび上がります。</div>
+<div class="end">This is the end. Scroll back up to rise to the surface.</div>
 
 <script src="env.js"></script>
 <script type="module" src="scene.js"></script>
 <script type="module">
-  // 文字・ボタン・季節と天気の切り替え
+  // text, buttons, and switching season and weather
   const Env = window.LakeEnv;
   const TEXT = {
-    spring: '春の湖に、花びらが舞っています。', summer: '夏の湖が、深い緑の山を映しています。',
-    autumn: '秋の山が、湖のまわりを染めています。', winter: '冬の山が、雪をかぶっています。'
+    spring: 'Petals drift over the spring lake.', summer: 'The summer lake mirrors deep green mountains.',
+    autumn: 'Autumn mountains color the shores of the lake.', winter: 'The winter mountains are covered in snow.'
   };
   const top = document.getElementById('top');
   const caps = [...document.querySelectorAll('.cap')];
@@ -141,21 +141,21 @@
       c.style.opacity = String(o); c.style.transform = `translateY(${(1 - o) * 14}px)`;
     }
     meter.style.opacity = String(sm(0.1, 0.16, p));
-    meterText.textContent = `水深 ${Math.round(30 * sm(0.18, 1, p))} m`;
+    meterText.textContent = `Depth ${Math.round(30 * sm(0.18, 1, p))} m`;
     meterDot.style.top = `${sm(0.14, 1, p) * 100}%`;
   });
-  // scene.js の読み込みを待ってから季節を反映
+  // apply the season once scene.js has loaded
   const wait = setInterval(() => { if (window.LakeScene?.setSeason) { clearInterval(wait); show(); } }, 100);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.4/dist/lenis.min.js"></script>
 <script>
-  // 滑らかなスクロール（Lenis）
+  // smooth scrolling (Lenis)
   const qp = new URLSearchParams(location.search).get('p');
   if (window.Lenis && !matchMedia('(prefers-reduced-motion: reduce)').matches && qp === null) {
     const lenis = new Lenis({ lerp: 0.08, wheelMultiplier: 0.9 });
     (function raf(t) { lenis.raf(t); requestAnimationFrame(raf); })(performance.now());
   }
-  // 確認用：?p=0.5 で途中の場面へ
+  // for checking: ?p=0.5 jumps to the middle of the scene
   if (qp !== null) addEventListener('load', () => setTimeout(() => {
     const s = document.getElementById('dive');
     scrollTo(0, s.offsetTop + (s.offsetHeight - innerHeight) * Math.max(0, Math.min(1, +qp)));

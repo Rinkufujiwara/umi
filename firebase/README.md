@@ -1,2 +1,3 @@
-Umi は Firebase プロジェクト spanish-shelf を共有しています。本番のルールは C:\Claudecode\spanish-books\firebase\firestore.rules と同じで、
-このフォルダの firestore.rules はその写しです。変えるときは両方と Firebase コンソールを一緒に変えます。
+Umi shares the Firebase project `spanish-shelf`. The production rules are the same as
+`C:\Claudecode\spanish-books\firebase\firestore.rules`; the `firestore.rules` in this folder is a copy.
+When changing them, change both files and the Firebase console together.

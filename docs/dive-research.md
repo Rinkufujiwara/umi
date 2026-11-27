@@ -1,52 +1,52 @@
-# ダイブ（集中タイマー）— 先行事例 → 案 → 評価 → 採用
+# Dive (focus timer) — prior work → ideas → scoring → choice
 
-2026-11-27。GitHub は 2025-09-26 以降に作られたもの（14か月以内）を `gh search repos --created` で探し、公開サイト・ストアも見た。
+2026-11-27. GitHub repositories created after 2025-09-26 (within 14 months) were searched with `gh search repos --created`, plus public sites and app stores.
 
-## 1. 先行事例
+## 1. Prior work
 
-| 事例 | 何が新しいか | 拾える考え |
+| Example | What is new | What to take |
 |---|---|---|
-| [FaceDown](https://github.com/arekbauer/FaceDown)（2026-01） | スマホを伏せている間だけ進む。持ち上げると止まる | 「その場にいる間だけ進む」：画面を離れたら止める（責めない） |
-| [DeepHUD](https://github.com/hktjayaranga/deephud)（2026-09） | 集中中に浮かんだ雑念をショートカットで書き留め、休憩で見直してタスクにできる。休憩は四角呼吸の案内 | **雑念メモ → 休憩で仕分け**、呼吸の休憩 |
-| [Immerse 沉浸日程](https://github.com/debugzhao/Immerse)（2026-11） | 予定がそのまま集中セッションになる。50%・80% で知らせる、勿扰を自動で | タスクから1クリックで始める、途中の節目の合図 |
-| [Txori](https://github.com/rama-io/txori)（2026-03） | 休憩でやることをルーレットで出す（水を飲む、姿勢） | 休憩の中身を決めてあげる |
-| [Flow Timer](https://github.com/tianze-hou/FlowTimer)（2025-12） | 神経多様性向け。手順ごとに時間を決めて流れで進む | 時間を決めない進め方 |
-| [Flowmodor](https://github.com/flowmodor/flowmodor) / [FlowTime](https://github.com/Glydric/FlowTime) / [FlowTime (Product Hunt, 2025-08)](https://www.producthunt.com/products/flowtime-focus-timer/launches) | 時間を決めずに集中し、やめたら集中の 1/5 だけ休む | **潜った長さに比例した休憩** |
-| [Pomodoist](https://github.com/Kabanya/Pomodoist)（2026-08） | 3Dのキャラが付き添う | 見た目の「付き添い」 |
-| [Forest](https://forestapp.cc/)・[SeedFocus](https://apps.apple.com/app/id6810488625)・[Bonsai](https://apps.apple.com/mx/app/bonsai-focus-study-timer/id6759262068) | 集中すると育ち、離れると枯れる | 育つ見た目。ただし罰は Umi の「凪」と合わない |
-| [Moment](https://apps.apple.com/app/id6446064063) | 海・空・砂・森のテーマ | 海の見た目だけ。仕組みは普通のタイマー |
+| [FaceDown](https://github.com/arekbauer/FaceDown) (2026-01) | Runs only while the phone lies face down; picking it up pauses it | "Runs only while you are there": stop when you leave the screen (without blame) |
+| [DeepHUD](https://github.com/hktjayaranga/deephud) (2026-09) | Jot down stray thoughts with a shortcut while focusing, review them in the break and turn them into tasks; the break guides box breathing | **Distraction notes → sort them in the break**, a breathing break |
+| [Immerse 沉浸日程](https://github.com/debugzhao/Immerse) (2026-11) | A scheduled event becomes a focus session; nudges at 50% and 80%; turns on Do Not Disturb | Start from a task in one click; milestone signals |
+| [Txori](https://github.com/rama-io/txori) (2026-03) | A roulette suggests what to do in the break (drink water, fix your posture) | Decide what the break is for |
+| [Flow Timer](https://github.com/tianze-hou/FlowTimer) (2025-12) | For neurodivergent users: a timed flow through steps | Working without a fixed time |
+| [Flowmodor](https://github.com/flowmodor/flowmodor) / [FlowTime](https://github.com/Glydric/FlowTime) / [FlowTime (Product Hunt, 2025-08)](https://www.producthunt.com/products/flowtime-focus-timer/launches) | Focus without a set time; when you stop, rest one fifth of it | **A break in proportion to the time spent** |
+| [Pomodoist](https://github.com/Kabanya/Pomodoist) (2026-08) | A 3D companion keeps you company | A visual companion |
+| [Forest](https://forestapp.cc/), [SeedFocus](https://apps.apple.com/app/id6810488625), [Bonsai](https://apps.apple.com/mx/app/bonsai-focus-study-timer/id6759262068) | Something grows while you focus and dies if you leave | Growth as a visual — but the punishment does not fit Umi's calm |
+| [Moment](https://apps.apple.com/app/id6446064063) | Ocean, air, sand and forest themes | Only the look of the sea; the timer itself is ordinary |
 
-まとめ：時間の決め方（固定・決めない）、雑念の扱い、休憩の決め方、離れたときの扱い、の4点で工夫がある。海を「仕組み」にまで使ったものは見つからなかった。
+Summary: the inventions are in four places — how the time is set (fixed or open), what happens to stray thoughts, how the break is decided, and what happens when you leave. None used the sea as part of the mechanism itself.
 
-## 2. 海に落とした案
+## 2. Ideas, in the sea
 
-- **A 酸素タンク**：残り時間＝タンクの残量。0で浮上。（固定時間のポモドーロを海の絵に変えただけ）
-- **B 素潜りと減圧**：潜っている間、カメラが本当に湖の中を下りていく。深さ＝潜った時間。浮上したら「減圧」＝潜った時間の 1/5 だけ休む（Flowmodoro を海の理屈で説明できる）。時間は 25分・50分・決めない から選ぶ
-- **C 泡メモ**：潜っている間に浮かんだ考えを書くと、泡になって水面へ上っていく。浮上したら泡を見て、タスクとして浮かべるか消すかを選ぶ（DeepHUD の雑念メモを海の動きにした）
-- **D ブイの錨綱を下りる**：潜る先は「いまの一つ」のブイ。カメラはそのブイの真下へ下りる。浮上したら「沈める（終わった）」を押せる（タスクとつながる）
-- **E 息が続かない**：画面を離れると息が減る／浮上させられる（Forest の罰）
-- **F 光の深さで節目**：50%・80% で水の色が暗く、光の筋が細くなる（Immerse の節目の合図を音でなく光で）
-- **G 波の呼吸**：減圧中は、波の満ち引きに合わせた呼吸の輪（4秒吸う・4秒吐く）
+- **A — Air tank**: remaining time = air left; surface at zero. (A fixed pomodoro dressed as the sea.)
+- **B — Free dive and decompression**: while diving, the camera really goes down through the lake; depth = time. After surfacing, "decompress" for one fifth of the dive (Flowmodoro explained by the sea itself). Time: 25 min, 50 min or no limit.
+- **C — Bubble notes**: type a stray thought and it rises to the surface as a bubble. After surfacing, float each bubble as a task or drop it (DeepHUD's distraction notes as a movement of water).
+- **D — Down the mooring line**: the dive goes under "The one for now" buoy; the camera descends right beneath it. After surfacing you can press *Sink (done)* (tied to the task).
+- **E — Out of breath**: leaving the screen uses up your breath or forces you up (Forest's punishment).
+- **F — Light by depth**: at 50% and 80% the water gets darker and the light shafts thinner (Immerse's milestones as light instead of sound).
+- **G — Breathing with the waves**: during decompression, a breathing ring that follows the waves (4 s in, 4 s out).
 
-## 3. 評価（5点満点）
+## 3. Scoring (out of 5)
 
-| 案 | 海との一貫性 | タスク管理とつながる | 新しさ | 凪の原則（責めない） | 作りやすさ（今の3Dを使える） | 計 |
+| Idea | Fits the sea | Tied to task management | New | Calm (no blame) | Easy to build on the current 3D | Total |
 |---|---|---|---|---|---|---|
-| A 酸素タンク | 3 | 2 | 1 | 4 | 5 | 15 |
-| **B 素潜りと減圧** | 5 | 3 | 4 | 5 | 4 | **21** |
-| **C 泡メモ** | 5 | 5 | 4 | 5 | 4 | **23** |
-| **D 錨綱を下りる** | 5 | 5 | 3 | 5 | 4 | **22** |
-| E 息が続かない | 4 | 2 | 2 | 1 | 4 | 13 |
-| F 光の深さ | 5 | 1 | 3 | 5 | 4 | 18 |
-| G 波の呼吸 | 4 | 1 | 2 | 5 | 5 | 17 |
+| A Air tank | 3 | 2 | 1 | 4 | 5 | 15 |
+| **B Free dive and decompression** | 5 | 3 | 4 | 5 | 4 | **21** |
+| **C Bubble notes** | 5 | 5 | 4 | 5 | 4 | **23** |
+| **D Down the mooring line** | 5 | 5 | 3 | 5 | 4 | **22** |
+| E Out of breath | 4 | 2 | 2 | 1 | 4 | 13 |
+| F Light by depth | 5 | 1 | 3 | 5 | 4 | 18 |
+| G Breathing with the waves | 4 | 1 | 2 | 5 | 5 | 17 |
 
-落とした理由：A は新しさがない。E は「責めない」に反する。F・G は単体では弱いので、B の演出の一部として残す（F＝深くなるほど暗く、G＝減圧中の呼吸の輪）。
+Dropped: A is not new. E goes against "no blame". F and G are weak on their own, so they stay as part of B's presentation (F = darker with depth, G = the breathing ring in decompression).
 
-## 4. 採用：「ダイブ」＝ D＋B＋C（F・G は演出として含める）
+## 4. Chosen: "Dive" = D + B + C (with F and G in the presentation)
 
-1. **潜る先を選ぶ**：「いまの一つ」か、ブイのカードの「潜る」から。時間は 25分・50分・決めない
-2. **潜る**：カメラがそのブイの下へ、湖の中をゆっくり下りる。深さ＝経過時間（決めないときは、だんだん深く）。深くなるほど光が落ちる。画面には、タスク名・時間・深さの目盛・泡メモの欄・「浮上する」だけ
-3. **泡メモ**：書いて Enter → 泡が水面へ上っていく
-4. **浮上**：時間が来たら、または「浮上する」で上がる。離れたときは止めず、責めない（時刻で数える）
-5. **減圧**：潜った時間の 1/5（最低1分）。波の呼吸の輪。泡メモを1つずつ「浮かべる（タスクにする）／消す」。タスクは「沈める（終わった）」か「もう一度潜る」
-6. 記録：タスクに潜った時間をためる（`t.dives`）
+1. **Pick where to dive**: "The one for now", or *Dive* on a buoy's card. Time: 25 min, 50 min or no limit.
+2. **Dive**: the camera slowly goes down through the lake under that buoy. Depth = elapsed time (with no limit, it keeps getting deeper). The deeper, the darker. On screen: only the task name, the time, a depth gauge, the bubble note box and *Surface*.
+3. **Bubble notes**: type and press Enter → a bubble rises to the surface.
+4. **Surface**: when the time is up, or with *Surface*. Leaving the page does not stop or blame anything (time is counted by the clock).
+5. **Decompression**: one fifth of the dive (at least a minute), with a breathing ring. Float or drop each bubble note. For the task: *Sink (done)* or *Dive again*.
+6. Record: dive time is kept on the task (`t.dives`, total in `t.diveMin`).

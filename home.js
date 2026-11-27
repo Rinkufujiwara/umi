@@ -1,11 +1,11 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=27';
-import { parseQuick } from './parse.js?v=27';
-import * as St from './store.js?v=27';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=27';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=27';
+import { createHome } from './home-scene.js?v=36';
+import { parseQuick } from './parse.js?v=36';
+import * as St from './store.js?v=36';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=36';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=36';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -94,6 +94,8 @@ function render() {
   const ranked = rank(L.filter(t => secOf(t) === 'surface'));
   const f = ranked[0], top = ranked.slice(1, calm ? 3 : 4); // in Nagi mode, only the three afloat
   $('cards').innerHTML = top.length ? top.map(cardHTML).join('') : `<div class="empty">${tr('empty.others')}</div>`;
+  // nothing else for today: drop the empty panel so the top block stays short
+  $('top').querySelector('.row').classList.toggle('solo', !top.length);
   focusId = f ? f.id : null;
   $('focus').innerHTML = f ? `${cardHTML(f)}<div class="go"><button class="btn pri" data-sink="${f.id}">${tr('btn.sink')}</button><button class="btn" data-dive="${f.id}">${tr('btn.dive')}</button><button class="btn quiet" data-later="${f.id}">${tr('btn.later')}</button></div>`
     : `<div class="empty">${tr('empty.focus')}</div>`;
@@ -150,6 +152,7 @@ home.onFrame((pts, { inside }) => {
     if (!el) { el = document.createElement('div'); el.className = 'tag'; el.dataset.open = p.id; $('tags').appendChild(el); tagEls.set(p.id, el); }
     const html = `<i style="background:${KIND_COLOR[kindOf(t)]}"></i>${esc(t.title)}`; // Shiomi's "must" shows in the color too
     if (el._h !== html) { el.innerHTML = html; el._h = html; el._w = 0; }
+    if (el.dataset.u !== tr('tag.urgent')) el.dataset.u = tr('tag.urgent');
     el.className = 'tag' + (hlId === p.id ? ' hl' : '') + (sharkSet.has(t.id) ? ' urgent' : '') + (p.id === fresh ? ' fresh' : '') + (show ? '' : ' off');
     if (!show) continue;
     if (!el._w) { el._w = el.offsetWidth || 160; el._hh = el.offsetHeight || 24; }

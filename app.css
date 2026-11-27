@@ -17,7 +17,7 @@ html.ready .loading { opacity: 0; pointer-events: none; }
 .app { position: relative; z-index: 1; display: grid; grid-template-columns: 228px minmax(0, 640px) 1fr; gap: 20px; padding: 20px; }
 .glass { background: var(--glass); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-radius: 16px; box-shadow: 0 10px 40px rgba(0,20,40,.12); }
 
-/* 左の列 */
+/* left column */
 .side { position: sticky; top: 20px; align-self: start; padding: 16px 12px; max-height: calc(100vh - 40px); overflow: auto; }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; padding: 0 6px 14px; letter-spacing: .04em; }
 .brand i { width: 22px; height: 22px; border-radius: 6px; background: var(--navy); display: inline-block; position: relative; }
@@ -37,7 +37,7 @@ html.ready .loading { opacity: 0; pointer-events: none; }
 .tools button, .tools label { font-size: 12px; color: var(--sub); background: none; border: 0; text-align: left; padding: 5px 8px; border-radius: 6px; cursor: pointer; }
 .tools button:hover, .tools label:hover { background: rgba(15,34,54,.05); color: var(--ink); }
 
-/* まんなか */
+/* middle */
 .main { padding-bottom: 70vh; min-width: 0; }
 .card { padding: 18px 20px; margin-bottom: 16px; }
 .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
@@ -97,7 +97,7 @@ html.ready .loading { opacity: 0; pointer-events: none; }
 .day { font-size: 12px; color: var(--sub); margin: 12px 2px 2px; }
 .more { margin-top: 8px; }
 
-/* 沈む：ゆっくり下へ、かすんで消える */
+/* sinking: drift down slowly and fade out */
 .row.sinking { animation: sink .9s cubic-bezier(.4, 0, .6, 1) forwards; pointer-events: none; }
 .row.sinking .ck { background: var(--navy); border-color: var(--navy); }
 @keyframes sink {
@@ -109,7 +109,7 @@ html.ready .loading { opacity: 0; pointer-events: none; }
 .sortable-fallback { opacity: .95 !important; }
 .sortable-chosen { background: #fff; box-shadow: 0 8px 24px rgba(0,20,40,.12); }
 
-/* 編集 */
+/* editor */
 .editor { grid-column: 1 / -1; margin: 8px 0 4px; padding: 12px; border-radius: 10px; background: rgba(15,34,54,.035); display: grid; gap: 10px; }
 .editor .f { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
 .editor label { display: grid; gap: 4px; font-size: 11px; color: var(--sub); }
@@ -117,7 +117,7 @@ html.ready .loading { opacity: 0; pointer-events: none; }
 .editor textarea { min-height: 54px; resize: vertical; }
 .editor .acts { display: flex; gap: 8px; justify-content: flex-end; }
 
-/* 右上：季節と天気 */
+/* top right: season and weather */
 .env { position: fixed; right: 20px; top: 20px; z-index: 10; }
 .env > button { font-size: 12px; border: 0; color: var(--ink); background: rgba(255,255,255,.85); backdrop-filter: blur(10px); padding: 7px 12px; border-radius: 999px; }
 .envMenu { position: absolute; right: 0; top: 40px; width: 280px; padding: 14px; display: none; }

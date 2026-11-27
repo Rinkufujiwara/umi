@@ -10,7 +10,12 @@ window.LakeEnv = (() => {
     rough:  { cloud: 0.9,  rain: 0.7, snow: 0, fog: 0.1,  wind: 0.75, thunder: 0 },
     storm:  { cloud: 1,    rain: 1,   snow: 0, fog: 0.15, wind: 1,    thunder: 1 }
   };
-  const tr = (k, p) => (window.UmiI18n ? window.UmiI18n.t(k, p) : k);
+  // pages without i18n.js (scene.html) fall back to these English labels
+  const FALLBACK = { 'env.statusManual': 'Lake: {k} ({s}) · manual', 'env.statusAuto': 'Busyness {p}%: {k} ({s})',
+    'weather.calm': 'Nagi', 'weather.ripple': 'Ripples', 'weather.waves': 'Waves', 'weather.rough': 'Rough', 'weather.storm': 'Storm',
+    'sky.calm': 'clear', 'sky.ripple': 'thin clouds', 'sky.waves': 'cloudy', 'sky.rough': 'rain', 'sky.storm': 'storm',
+    'season.spring': 'Spring', 'season.summer': 'Summer', 'season.autumn': 'Autumn', 'season.winter': 'Winter' };
+  const tr = (k, p = {}) => (window.UmiI18n ? window.UmiI18n.t(k, p) : String(FALLBACK[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => p[x] ?? ''));
   const SEASON_LABEL = new Proxy({}, { get: (_, k) => tr('season.' + String(k)) });
   function seasonFor(date) {
     const m = date.getMonth() + 1;
