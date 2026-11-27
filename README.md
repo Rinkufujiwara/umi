@@ -54,3 +54,5 @@ Layout checks: `sh tools/align-check.sh` measures the shared layout lines at thr
 - `docs/dive-research.md` — prior work, ideas and scoring behind Dive
 - `docs/improve-set1.md`, `docs/improve-set2.md` — two review rounds (30 issues found, 15 fixed each)
 - `docs/ui-review/README.md` — the button and motion rules, with the 30 references they came from
+- `docs/shore-references.md` — references behind the land/water cut-away
+- `docs/nagi-agent-design.md` — design for a Nagi planning agent with a handoff from Shiomi (proposal)
