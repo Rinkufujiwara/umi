@@ -40,6 +40,20 @@ Values you set by hand win over Shiomi, and Shiomi wins over a keyword estimate.
 - Signed in with Google (Firebase Auth), data is one Firestore document per person (`umi/{uid}`) and syncs across devices.
 - `/api/weigh` checks the Firebase ID token and an allow-list before calling Gemini. Set these on Vercel: `GEMINI_API_KEY`, `ALLOWED_EMAILS`, and optionally `GEMINI_MODEL`.
 
+## Agents (Shiomi → Nagi over A2A)
+
+Nagi mode's three tasks come from a planner agent. Shiomi and Nagi are separate A2A agents on Vercel:
+
+```
+browser ── /api/nagi ──A2A──▶ /api/agents/shiomi   judges tasks the report does not know well
+                     ──A2A──▶ /api/agents/nagi     plans with read-only tools (day budget, free time, task, dives)
+```
+
+Each agent serves its agent card on GET and A2A JSON-RPC (`message/send`, data parts) on POST. The handoff is a
+**ShiomiReport** (Shiomi's judgments + due dates, slack, order); the answer is a **NagiPlan** (three to keep, a reason
+for each, optional suggestions). The browser checks every plan and falls back to the formula (top 3 by W) if anything
+fails. Design: `docs/nagi-agent-design.md`.
+
 ## Built with
 
 three.js (Water, Sky), GSAP (Observer), SunCalc, chrono-node, SortableJS, tinykeys, Lenis. No build step; it is served as static files.
@@ -56,4 +70,5 @@ Layout checks: `sh tools/align-check.sh` measures the shared layout lines at thr
 - `docs/improve-set1.md`, `docs/improve-set2.md` — two review rounds (30 issues found, 15 fixed each)
 - `docs/ui-review/README.md` — the button and motion rules, with the 30 references they came from
 - `docs/shore-references.md` — references behind the land/water cut-away
-- `docs/nagi-agent-design.md` — design for a Nagi planning agent with a handoff from Shiomi (proposal)
+- `docs/nagi-agent-design.md` — the Nagi planning agent and its A2A handoff from Shiomi
+- `docs/reference/adk-agents/` — the same two agents on Google's ADK for Cloud Run (reference, not deployed)

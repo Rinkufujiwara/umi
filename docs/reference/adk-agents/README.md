@@ -1,4 +1,7 @@
-# Umi agents (Shiomi and Nagi)
+# Umi agents on ADK (reference)
+
+> Not deployed. Umi runs Shiomi and Nagi as A2A agents on Vercel (`api/agents/`, see `docs/nagi-agent-design.md`).
+> This is the same pair built with Google's Agent Development Kit (Python) for Cloud Run, kept as a reference and tested locally up to the model call.
 
 Two ADK agents served over A2A from one Cloud Run service. Design: `../docs/nagi-agent-design.md`.
 

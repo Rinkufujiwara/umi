@@ -1,6 +1,8 @@
 # Nagi agent — design
 
-Status: proposal (2026-11-28). Nothing here is built yet.
+Status: built (2026-11-28). Phases 1 and 2 are live on Vercel; the calendar (phase 3) and A2UI cards (phase 4) are not built yet.
+
+**Where it runs:** all on Vercel. Shiomi and Nagi are separate A2A agents (`api/agents/shiomi.js`, `api/agents/nagi.js`), each with an agent card (GET) and a JSON-RPC endpoint (POST `message/send` with data parts). `api/nagi.js` resolves each card and hands the report from Shiomi to Nagi over A2A. Every call carries the user's Firebase ID token, checked by each agent. The same pair built on Google's ADK for Cloud Run is kept as a reference in `docs/reference/adk-agents/`.
 
 ## 1. Why
 
@@ -138,9 +140,9 @@ sequenceDiagram
 
 | Layer | Choice | Why |
 |---|---|---|
-| Agent ↔ agent | **A2A** (Agent2Agent): each agent publishes an agent card; the report goes over as a task with the JSON above as its data part; the plan comes back as an artifact | A standard, inspectable handoff instead of a hidden function call; either agent can be swapped or tested alone |
+| Agent ↔ agent | **A2A** (Agent2Agent, JSON-RPC binding): each agent publishes an agent card; the report goes over in `message/send` as a data part; the reply message carries the plan as a data part | A standard, inspectable handoff instead of a hidden function call; either agent can be swapped or tested alone |
 | Agent ↔ tools | **MCP** for the calendar; plain functions for app data | Calendar access is a separate, permissioned service; app data is already in the request |
-| Agent framework | **ADK** (Agent Development Kit) for both agents | Tool calling, sessions and evaluation built in |
+| Agent framework | Live: Gemini function calling inside Vercel functions. Reference: **ADK** (Python) in `docs/reference/adk-agents/` | Vercel keeps everything in one place with the keys already set; ADK is the path if the agents move to Cloud Run |
 | Agent → UI | Phase 2: **A2UI**-style declarative cards for Nagi's suggestions | The agent describes the card ("suggestion with Accept / Not now"); the app renders it with its own buttons and styles |
 
 ## 9. When things go wrong
@@ -173,14 +175,14 @@ sequenceDiagram
 
 ## 13. Phases
 
-1. **Contract first**: build the ShiomiReport and NagiPlan types and the plan checks, with a "formula Nagi" that returns the current top 3 in the NagiPlan shape. No model yet.
-2. **Nagi agent** on ADK with the app-data tools; A2A between Shiomi and Nagi; the fallback in §9.
-3. **Calendar** through MCP (read-only), behind a Settings switch.
-4. **Suggestions as A2UI cards**, and the evaluation set.
+1. **Contract first** — done: `nagi.js` builds the ShiomiReport, checks every plan, and falls back to the formula.
+2. **Nagi agent and the A2A handoff** — done, on Vercel: `api/agents/shiomi.js`, `api/agents/nagi.js`, `api/nagi.js`.
+3. **Calendar** (read-only) behind a Settings switch — not yet; `get_free_time` says "not connected".
+4. **Suggestions as A2UI cards**, and the evaluation set — not yet.
 
-## 14. Decisions needed
+## 14. Decisions made
 
-1. **Hosting**: keep the agents in Vercel functions (Node), or run them with ADK on Cloud Run (Python) and have Vercel call them. Recommended: Cloud Run, since ADK and A2A are most complete there.
-2. **Calendar**: connect Google Calendar (read-only) or not. Without it, Nagi plans from hours per day only.
-3. **Real A2A or an in-process contract** for phase 2. Recommended: real A2A between two services, since that is the point for the portfolio.
-4. **How much Nagi may suggest**: only "tomorrow", or also "lighter" and "dive".
+1. **Hosting**: Vercel. Cloud Run was prepared (ADK + A2A in Python, tested locally) but not needed; it stays as a reference.
+2. **Calendar**: later (phase 3).
+3. **A2A**: real A2A between two endpoints (each with its own agent card), even though both live in the same Vercel project.
+4. **Suggestions**: tomorrow, lighter, later, dive — each only runs when the user taps it.
