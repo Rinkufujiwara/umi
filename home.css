@@ -593,3 +593,7 @@ html[data-night="1"] .seg.dmodes button { background: none; border: 0; }
 html[data-night="1"] #pop, html[data-night="1"] #envMenu { background-color: rgba(26,50,60,.94); }
 #envMenu p { color: #3d5660 !important; }
 html[data-night="1"] #envMenu p { color: #b9d3d8 !important; }
+/* あいさつが長い（おはようございます）ときも1行に。入りきらない日付は末尾を「…」に */
+.greet { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
+.greet h1 { flex: none; }
+.greet .meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
