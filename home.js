@@ -1,12 +1,12 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=43';
-import { parseQuick } from './parse.js?v=43';
-import * as St from './store.js?v=43';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=43';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=43';
-import { requestPlan } from './nagi.js?v=43';
+import { createHome } from './home-scene.js?v=44';
+import { parseQuick } from './parse.js?v=44';
+import * as St from './store.js?v=44';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=44';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=44';
+import { requestPlan } from './nagi.js?v=44';
 applyStatic();
 gsap.registerPlugin(Observer);
 

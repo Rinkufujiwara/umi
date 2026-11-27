@@ -3,7 +3,7 @@
 // The app builds a ShiomiReport (Shiomi's judgments + the app's own numbers), asks the Nagi agent for a
 // NagiPlan, checks the plan against fixed rules, and falls back to the formula (top 3 by W) whenever the
 // agent is off, slow, or returns something that breaks a rule. Nagi only proposes; nothing here edits tasks.
-import * as St from './store.js?v=43';
+import * as St from './store.js?v=44';
 
 export const PLAN_VERSION = 1;
 const ACTIONS = new Set(['tomorrow', 'lighter', 'later', 'dive']);
@@ -90,7 +90,7 @@ const clampMin = m => [25, 50].includes(+m) ? +m : 25;
 // ---------------------------------------------------------------- asking the agent
 // endpoint: /api/nagi (Vercel), which checks sign-in and forwards to the Nagi agent over A2A.
 // Returns a checked plan, or the formula plan when anything goes wrong.
-export async function requestPlan(S, { lang, areaOf, token, endpoint = '/api/nagi', timeoutMs = 6000, enabled = true } = {}) {
+export async function requestPlan(S, { lang, areaOf, token, endpoint = '/api/nagi', timeoutMs = 25000, enabled = true } = {}) {
   const report = buildReport(S, { lang, areaOf });
   const fallback = checkPlan(formulaPlan(report, { lang }), report, S) || formulaPlan(report, { lang });
   if (!enabled || !token || !report.tasks.some(t => t.section === 'surface')) return { plan: fallback, report, why: 'off' };
