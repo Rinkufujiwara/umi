@@ -1,5 +1,5 @@
-// Google ログイン（Firebase）と、1人1つのデータ（Firestore の umi/{uid}）。潮見（AI）の呼び出しもここ。
-// ログインしていないときは、これまでどおりこのブラウザの中だけに保存する。
+// Google sign-in (Firebase) and one data document per person (Firestore umi/{uid}). Calls to Shiomi (AI) live here too.
+// Signed out, data stays in this browser as before. hooks.toast() takes an i18n key.
 const V = '11.10.0';
 const cfg = window.FIREBASE_CONFIG;
 
@@ -27,7 +27,7 @@ export async function startCloud(hooks) {
     import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`),
     import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`)
   ]);
-  // 本番ではログイン画面を自分のドメインから出す（vercel.json で /__/auth を中継）。それ以外は Firebase のドメイン
+  // In production the sign-in page is served from our own domain (vercel.json proxies /__/auth); elsewhere from Firebase's domain
   const onSite = location.hostname === cfg.siteHost;
   const app = initializeApp({ ...cfg, authDomain: onSite ? location.host : cfg.authDomain });
   const auth = A.getAuth(app), db = F.getFirestore(app);
@@ -39,7 +39,7 @@ export async function startCloud(hooks) {
     catch (e) {
       const code = e && e.code;
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') await A.signInWithRedirect(auth, provider);
-      else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') hooks.toast('ログインできませんでした。もう一度試してください。');
+      else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') hooks.toast('cloud.signinFail');
     }
   };
   Cloud.signOut = () => A.signOut(auth);
@@ -53,18 +53,18 @@ export async function startCloud(hooks) {
     Cloud.ref = F.doc(db, 'umi', user.uid);
     let snap;
     try { snap = await F.getDoc(Cloud.ref); }
-    catch (_) { hooks.toast('アカウントのデータを読み込めませんでした'); hooks.onUser(user); return; }
+    catch (_) { hooks.toast('cloud.loadFail'); hooks.onUser(user); return; }
     if (snap.exists()) {
       Cloud.lastJson = snap.data().json || '';
       hooks.setJson(Cloud.lastJson);
     } else {
-      // はじめてのログイン：この端末のデータを、そのままアカウントのデータにする
+      // first sign-in: this device's data becomes the account's data
       const json = hooks.getJson();
-      try { await F.setDoc(Cloud.ref, { json, updatedAt: F.serverTimestamp() }); Cloud.lastJson = json; hooks.toast('この端末のデータをアカウントに保存しました'); }
-      catch (_) { hooks.toast('アカウントに保存できませんでした'); }
+      try { await F.setDoc(Cloud.ref, { json, updatedAt: F.serverTimestamp() }); Cloud.lastJson = json; hooks.toast('cloud.uploaded'); }
+      catch (_) { hooks.toast('cloud.saveFail'); }
     }
     hooks.onUser(user);
-    // ほかの端末での変更を、そのまま映す
+    // mirror changes made on other devices
     Cloud.unsub = F.onSnapshot(Cloud.ref, s => {
       if (!s.exists() || s.metadata.hasPendingWrites) return;
       const json = s.data().json || '';
@@ -74,9 +74,9 @@ export async function startCloud(hooks) {
   });
 }
 
-// ---------------------------------------------------------------- 潮見（AI）：I/P/E/D を付けてもらう
+// ---------------------------------------------------------------- Shiomi (AI): asks for I/P/E/D
 export const Shiomi = {
-  state: 'off',   // off（ログインなし）/ idle / busy / unset（Vercel に未設定）/ denied（許可されていないアカウント）/ error
+  state: 'off',   // off (signed out) / idle / busy / unset (not configured on Vercel) / denied (account not allowed) / error
   timer: 0, backoff: 30e3,
   kick(hooks, delay = 2500) {
     clearTimeout(this.timer);
@@ -92,7 +92,7 @@ export const Shiomi = {
       const r = await fetch('/api/weigh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await Cloud.token()}` },
-        body: JSON.stringify({ tasks: todo, examples: hooks.examples() })
+        body: JSON.stringify({ tasks: todo, examples: hooks.examples(), lang: hooks.lang ? hooks.lang() : 'en' })
       });
       if (r.status === 503) { this.state = 'unset'; hooks.status(); return; }
       if (r.status === 401 || r.status === 403) { this.state = 'denied'; hooks.status(); return; }

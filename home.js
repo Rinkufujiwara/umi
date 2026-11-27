@@ -1,11 +1,11 @@
 // Umi home: each buoy floating on the lake is a task; finishing one sinks it. The wheel moves the camera, not the page.
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/+esm';
 import { Observer } from 'https://cdn.jsdelivr.net/npm/gsap@3.15.1/Observer/+esm';
-import { createHome } from './home-scene.js?v=26';
-import { parseQuick } from './parse.js?v=26';
-import * as St from './store.js?v=26';
-import { Cloud, startCloud, Shiomi } from './cloud.js?v=26';
-import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=26';
+import { createHome } from './home-scene.js?v=27';
+import { parseQuick } from './parse.js?v=27';
+import * as St from './store.js?v=27';
+import { Cloud, startCloud, Shiomi } from './cloud.js?v=27';
+import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=27';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -424,7 +424,7 @@ function moveInd() {
   ind.style.transform = `translateY(${on.offsetTop}px)`;
 }
 addEventListener('resize', moveInd);
-// 窓の大きさが変わったら、いまの視点を測り直す（凪の3つ・空からの一覧が外れないように）
+// When the window size changes, re-measure the current view (so Nagi's three and the Overview stay in frame)
 let resizeT = 0;
 addEventListener('resize', () => {
   clearTimeout(resizeT);
@@ -435,7 +435,7 @@ addEventListener('resize', () => {
       home.jumpTo(home.stationFor('map', { left: (innerWidth > 820 ? side.right : 0) + 18, top: mv.offsetTop + mv.offsetHeight + 18, right: 24, bottom: 24 })); }
   }, 250);
 });
-// 水面に上がったとき：パネルに水滴がつき、2秒ほどで落ちる
+// Coming up to the surface: droplets land on the panels and slide off within about 2 seconds
 function wetPanels() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const targets = [...document.querySelectorAll('#top .panel, .side, #tide, #calmBtn, #addBtn')];
@@ -460,11 +460,11 @@ function goTo(name) {
   if (name === station || moving || station === 'dive') return;
   const wasHome = station === 'home', from = station;
   moving = true; station = name; closePop(); closeAdd();
-  // 空から見るときは、左の列と上のパネルの実際の大きさを測って、その外にブイを収める
+  // From the sky, measure the left column and the top panel and fit the buoys outside them
   const side = document.querySelector('.side').getBoundingClientRect(), mv = $('mapview');
   const ins = { left: (innerWidth > 820 ? side.right : 0) + 18, top: mv.offsetTop + mv.offsetHeight + 18, right: 24, bottom: 24 };
   const st = home.stationFor(name, name === 'home' ? homeInsets() : ins);
-  // 移動中は名札を消す（チカチカするので）
+  // hide name tags while moving (they flicker otherwise)
   document.body.classList.add('moving');
   const down = name === 'bed';
   document.querySelectorAll('.side .nav[data-go], .mbar [data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === name));
@@ -473,11 +473,11 @@ function goTo(name) {
   document.body.classList.toggle('map', up);
   $('mapview').classList.toggle('on', up);
   moveInd();
-  if (name === 'home' && from === 'bed') setTimeout(wetPanels, 650); // 水滴は湖底から上がってきたときだけ
+  if (name === 'home' && from === 'bed') setTimeout(wetPanels, 650); // droplets only when coming up from the lakebed
   renderBed();
   [$('top'), $('bedhint'), $('ticks'), $('axis')].forEach(el => el.classList.toggle('away', down || up));
   $('tags').style.opacity = down ? '0' : '1';
-  // 空 ↔ 湖底は遠すぎるので、フェードでつなぐ。ほかは位置と向きを同時に動かす
+  // sky ↔ lakebed is too far, so it fades; other moves change position and direction together
   if ((from === 'map' && name === 'bed') || (from === 'bed' && name === 'map')) {
     const f = $('fade');
     f.classList.add('on');
@@ -495,7 +495,7 @@ Observer.create({
   onUp: () => { if (!overlayOpen() && !scrollingInside()) step(1); },
   onDown: () => { if (!overlayOpen() && !scrollingInside()) step(-1); }
 });
-// 湖底の一覧の中でのスクロールは、一覧だけを動かす
+// scrolling inside the lakebed list scrolls only the list
 let lastWheelTarget = null;
 addEventListener('wheel', e => { lastWheelTarget = e.target; }, { capture: true, passive: true });
 function scrollingInside() {
@@ -511,16 +511,16 @@ addEventListener('keydown', e => {
   if (e.key === 'd' && !e.ctrlKey && !e.metaKey && !overlayOpen()) { e.preventDefault(); kbdOpen(); openDive(); }
 });
 
-// ほかのタブ（一覧画面）で変わったら読み直す
+// reload when another tab (the table page) changes the data
 addEventListener('storage', e => { if (e.key === St.KEY) { S = St.load(); render(); } });
 let lastDay = St.todayStr();
 setInterval(() => { if (St.todayStr() !== lastDay) { lastDay = St.todayStr(); render(); } }, 60e3);
-// ---------------------------------------------------------------- ログインと潮見（AI）
+// ---------------------------------------------------------------- sign-in and Shiomi (AI)
 const shiomiHooks = {
-  // まだ潮見が見ていないタスク（名前が変わったものも）
+  // tasks Shiomi has not weighed yet (including renamed ones)
   pending: () => S.tasks.filter(t => !t.done && !(t.ai && t.ai.title === t.title))
     .map(t => ({ id: t.id, title: t.title, note: t.notes || '', project: areaName(t), hasDue: !!t.due })),
-  // あなたが重さを直した例（潮見がこの人の物差しとして使う）
+  // tasks whose weight you corrected (Shiomi uses them as your yardstick)
   examples: () => S.tasks.filter(t => t.w && (t.w.i != null || t.w.p != null)).slice(-6).map(t => {
     const c = St.compute(t, S.settings.budget, areaName(t));
     return { title: t.title, impact: c.I, penalty: c.P, effort: c.E, dependency: c.D, must: c.must };
@@ -533,16 +533,17 @@ const shiomiHooks = {
     if (Cloud.user) Cloud.queueSave(JSON.stringify(S)); else St.save(S);
     render();
   },
-  status: () => renderAccount()
+  status: () => renderAccount(),
+  lang: () => getLang()
 };
-const SHIOMI_TEXT = { off: 'ログインすると潮見が重さを付けます', idle: '潮見：最新', busy: '潮見：考えています…', unset: '潮見：Vercel に API キーが未設定', denied: '潮見：このアカウントは許可されていません', error: '潮見：つながりません（あとで再試行）' };
+const shiomiText = state => (state ? tr('shiomi.' + state) : '');
 function renderAccount() {
   const el = $('account'); if (!el) return;
-  queueMicrotask(() => { const a2 = $('account2'); if (a2) a2.innerHTML = el.innerHTML; }); // スマホでは設定の中に出す
+  queueMicrotask(() => { const a2 = $('account2'); if (a2) a2.innerHTML = el.innerHTML; }); // on phones this shows inside Settings
   if (!Cloud.ready) { el.innerHTML = ''; return; }
   el.innerHTML = Cloud.user
-    ? `<div class="acct"><b title="${esc(Cloud.user.email || '')}">${esc(Cloud.user.displayName || Cloud.user.email || 'ログイン中')}</b><button class="linkbtn" id="signOut">ログアウト</button></div><small>${SHIOMI_TEXT[Shiomi.state] || ''}</small>`
-    : `<button class="btn gbtn" id="signIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/></svg>Google でログイン</button>`;
+    ? `<div class="acct"><b title="${esc(Cloud.user.email || '')}">${esc(Cloud.user.displayName || Cloud.user.email || tr('acct.signedIn'))}</b><button class="linkbtn" id="signOut">${tr('acct.signout')}</button></div><small>${shiomiText(Shiomi.state)}</small>`
+    : `<button class="btn gbtn" id="signIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/></svg>${tr('acct.signin')}</button>`;
 }
 document.addEventListener('click', e => {
   if (e.target.closest('#signIn')) Cloud.signIn?.();
@@ -553,16 +554,16 @@ startCloud({
   setJson: json => { S = St.fromJson(json); render(); renderEnv(); },
   localJson: () => JSON.stringify(St.load()),
   onUser: () => { renderAccount(); Shiomi.kick(shiomiHooks, 800); },
-  toast: text => toast(text)
+  toast: key => toast(tr(key))
 }).catch(() => {});
 hooksReady = true;
-Cloud.onSaved = ok => { if (!ok) toast('アカウントに保存できませんでした'); };
+Cloud.onSaved = ok => { if (!ok) toast(tr('toast.saveFail')); };
 
 render();
 if (S.settings.calm) { home.setCalm(true, true); home.jumpTo(home.stationFor('home', homeInsets())); }
 renderEnv();
 requestAnimationFrame(moveInd);
-// 時間帯：1分ごとに太陽の高さを更新（?hour=19.5 で確かめられる）
+// Time of day: update the sun's height every minute (test with ?hour=19.5)
 const qhour = new URLSearchParams(location.search).get('hour');
 function tick() {
   const d = new Date();
@@ -574,16 +575,16 @@ tick(); setInterval(tick, 60e3); Env.on(tick);
 const qv = new URLSearchParams(location.search).get('view'); if (ORDER.includes(qv)) setTimeout(() => goTo(qv), 600);
 window.UmiHome = { goTo, complete, get S() { return S; }, home };
 
-// ?check=1 のとき、レイアウトの線を測って結果をタイトルに書く（headless のテスト用）
+// With ?check=1, measure the layout lines and write the result into the title (for headless tests)
 if (new URLSearchParams(location.search).has('check')) {
   const sc = document.createElement('script'); sc.src = 'tools/align-check.js?' + Date.now();
   sc.onload = () => setTimeout(() => { document.title = 'ALIGN ' + JSON.stringify(window.alignCheck()); }, 2500);
   document.head.appendChild(sc);
 }
 
-// ================================================================ ダイブ（集中タイマー）
-// 先行事例と案の評価は docs/dive-research.md。
-// 潜る先のブイの下へ湖の中を下りる（深さ＝時間）→ 浮かんだ考えは泡メモ → 浮上 → 減圧（潜った時間の1/5）
+// ================================================================ Dive (focus timer)
+// Prior work and the scoring of ideas: docs/dive-research.md
+// Go down into the lake under the chosen buoy (depth = time) → stray thoughts become bubble notes → surface → decompression (a break, 1/5 of the dive)
 const DIVE_KEY = 'umi.dive';
 let dv = null, dvTimer = 0, dvMode = 25, restEnd = 0;
 const fmt = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -598,36 +599,37 @@ function openDive(id) {
   closePop(); closeAdd();
   const L = rank(live());
   const pick = id || focusId || L[0]?.id;
-  if (!pick) { toast('潜る先のタスクがありません'); return; }
-  const GROUP = [['surface', '今日'], ['shallows', '今週'], ['depths', 'いつか']];
+  if (!pick) { toast(tr('toast.noDiveTarget')); return; }
+  const GROUP = ['surface', 'shallows', 'depths'].map(s => [s, tr('dive.group.' + s)]);
   $('dTask').innerHTML = GROUP.map(([s, name]) => { const g = L.filter(t => secOf(t) === s); return g.length ? `<optgroup label="${name}">${g.map(t => `<option value="${t.id}"${t.id === pick ? ' selected' : ''}>${esc(t.title)}</option>`).join('')}</optgroup>` : ''; }).join('');
   const t = S.tasks.find(x => x.id === pick);
   setMode(t?.est && t.est >= 50 ? 50 : 25); dvShow('setup'); setTimeout(() => $('dStart').focus(), 50);
 }
 function setMode(m) {
   dvMode = m;
+  $('dModes').querySelectorAll('.dmin').forEach(b => { b.textContent = tr('dive.min', { m: b.dataset.m }); });
   $('dModes').querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', +b.dataset.m === m)); syncSeg($('dModes'));
-  $('dNote').textContent = m ? `${m}分たつと、自動で浮上します。そのあと${Math.max(1, Math.round(m / 5))}分の減圧（休憩）。` : '自分で「浮上する」まで潜ります。休憩は、潜った時間の5分の1。';
+  $('dNote').textContent = m ? tr('dive.noteTimed', { m, r: Math.max(1, Math.round(m / 5)) }) : tr('dive.noteOpen');
 }
 $('dModes').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) setMode(+b.dataset.m); });
 $('dCancel').onclick = () => { $('dive').hidden = true; };
 $('dStart').onclick = () => startDive($('dTask').value, dvMode);
 async function startDive(id, min, resume) {
   if (!id) return;
-  if (station !== 'home') { // 一覧・湖底からは、フェードで直接ホームへ（2秒待たせない）
+  if (station !== 'home') { // from the Overview or the lakebed, fade straight home (no 2-second wait)
     const f = $('fade'); f.classList.add('on'); await new Promise(r => setTimeout(r, 380));
     station = 'home'; document.body.classList.remove('map'); $('mapview').classList.remove('on'); $('bedview').classList.remove('on');
     [$('top'), $('bedhint'), $('ticks'), $('axis')].forEach(el => el?.classList.remove('away')); $('tags').style.opacity = '1';
     home.jumpTo(home.diveStation(id, 0)); setTimeout(() => f.classList.remove('on'), 120);
   }
   dv = resume || { id, min, start: Date.now(), bubbles: [] }; dvSave();
-  // 別のタブにいても浮上・減圧の終わりに気づけるように（最初の一度だけ許可を聞く）
+  // so you notice surfacing and the end of the break from another tab (asks for permission once)
   if (!resume && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
   document.querySelectorAll('.side .nav').forEach(b => b.classList.toggle('on', b.hasAttribute('data-dive-open'))); moveInd();
   station = 'dive'; moving = true; document.body.classList.add('moving');
   const t = S.tasks.find(x => x.id === dv.id);
   $('dTaskName').textContent = t ? t.title : '';
-  $('dSub').textContent = dv.min ? `${dv.min}分のダイブ` : '時間は決めない';
+  $('dSub').textContent = dv.min ? tr('dive.subTimed', { m: dv.min }) : tr('dive.subOpen');
   dvShow('hud'); dvTick();
   plop();
   await home.flyTo(home.diveStation(dv.id, 0), 2.4);
@@ -638,10 +640,10 @@ function dvElapsed() { return Date.now() - dv.start; }
 function dvTick() {
   if (!dv || dv.ended) return;
   const el = dvElapsed(), total = dv.min * 60e3;
-  // 深さ：時間を決めたときはその割合、決めないときはだんだん深く（40分で6割ほど）
+  // depth: share of the set time, or, with no limit, deeper and deeper (about 0.6 at 40 min)
   const k = dv.min ? Math.min(1, el / total) : 1 - Math.exp(-el / (45 * 60e3));
   home.setDiveDepth(k);
-  $('dDepth').style.height = `${k * 100}%`; $('dDepthTxt').textContent = `深さ ${Math.round(k * 30)}m`;
+  $('dDepth').style.height = `${k * 100}%`; $('dDepthTxt').textContent = tr('dive.depth', { m: Math.round(k * 30) });
   const shown = dv.min ? fmt(total - el) : fmt(el);
   $('dTime').textContent = shown; document.title = `▼ ${shown} · Umi`;
   if (dv.min && el >= total) surface();
@@ -657,12 +659,12 @@ function surface() {
   const el = dvElapsed(), min = Math.max(1, Math.round((dv.min ? Math.min(el, dv.min * 60e3) : el) / 60e3));
   dv.ended = Date.now(); dv.used = min; dvSave();
   const t = S.tasks.find(x => x.id === dv.id);
-  if (t && el > 60e3) { // 合計は diveMin にためて、記録は新しい50件だけ残す
+  if (t && el > 60e3) { // keep the total in diveMin and only the latest 50 records
     t.diveMin = (t.diveMin || (t.dives || []).reduce((s, d) => s + d.min, 0)) + min;
     t.dives = [...(t.dives || []), { at: dv.start, min }].slice(-50); save();
   }
   plop();
-  notify('浮上しました', `${min}分 潜りました。${Math.max(1, Math.round(min / 5))}分の減圧（休憩）をどうぞ`);
+  notify(tr('dive.notifyUp'), tr('dive.notifyUpBody', { m: min, r: Math.max(1, Math.round(min / 5)) }));
   document.querySelectorAll('.side .nav').forEach(b => b.classList.toggle('on', b.dataset.go === 'home')); moveInd();
   document.title = 'Umi';
   home.setDive(null); moving = true; document.body.classList.add('moving');
@@ -674,27 +676,27 @@ function surface() {
 function showRest(min, t) {
   const rest = Math.max(1, Math.round(min / 5));
   restEnd = (dv.ended || Date.now()) + rest * 60e3;
-  $('dSummary').textContent = `${min}分 潜りました`;
+  $('dSummary').textContent = tr('dive.summary', { m: min });
   renderBubbles(); dvShow('rest');
   $('dSink').hidden = !t || t.done;
   const upd = () => {
     const left = restEnd - Date.now();
-    $('dRestTime').textContent = left > 0 ? `減圧 ${fmt(left)}` : '減圧おわり';
-    document.title = left > 0 ? `減圧 ${fmt(left)} · Umi` : 'Umi';
-    $('dBreathTxt').textContent = left > 0 ? '波に合わせて、ゆっくり吸って、吐いて' : 'また潜れます';
-    if (left <= 0) { clearInterval(dvTimer); if (Date.now() - restEnd < 5000) { chime(); notify('減圧おわり', 'また潜れます'); } }
+    $('dRestTime').textContent = left > 0 ? tr('dive.rest', { t: fmt(left) }) : tr('dive.restDone');
+    document.title = left > 0 ? `${tr('dive.rest', { t: fmt(left) })} · Umi` : 'Umi';
+    $('dBreathTxt').textContent = tr(left > 0 ? 'dive.breath' : 'dive.again');
+    if (left <= 0) { clearInterval(dvTimer); if (Date.now() - restEnd < 5000) { chime(); notify(tr('dive.notifyRest'), tr('dive.notifyRestBody')); } }
   };
   clearInterval(dvTimer); upd(); dvTimer = setInterval(upd, 500);
 }
 function renderBubbles() {
   const b = dv?.bubbles || [];
-  $('dBubbles').innerHTML = b.length ? `<div class="dlab">泡メモ（${b.length}）</div>` + b.map((x, i) => `<div class="bub"><span>${esc(x)}</span><button class="btn" data-bf="${i}">浮かべる</button><button class="btn quiet" data-bx="${i}">消す</button></div>`).join('') : '';
+  $('dBubbles').innerHTML = b.length ? `<div class="dlab">${tr('dive.bubbles', { n: b.length })}</div>` + b.map((x, i) => `<div class="bub"><span>${esc(x)}</span><button class="btn" data-bf="${i}">${tr('dive.float')}</button><button class="btn quiet" data-bx="${i}">${tr('dive.drop')}</button></div>`).join('') : '';
 }
 $('dBubbles').addEventListener('click', e => {
   const f = e.target.closest('[data-bf]'), x = e.target.closest('[data-bx]');
   if (!f && !x) return;
   const i = +(f ? f.dataset.bf : x.dataset.bx), text = dv.bubbles[i];
-  if (f) { // 泡 → タスク（日付などは追加の入力欄と同じように読む）
+  if (f) { // bubble → task (dates etc. are read the same way as in the add box)
     const p = parseQuick(text);
     const t = { id: St.uid(), title: p.title || text, area: p.area ? St.areaByName(S, p.area) : null, due: p.due, time: p.time, est: p.est, kind: p.kind, repeat: p.repeat,
       pin: p.someday ? 'depths' : (p.due ? null : 'surface'), notes: '', done: false, doneAt: null, w: p.weight ? { ...St.WEIGHT_IP[p.weight] } : undefined,
@@ -717,10 +719,10 @@ addEventListener('keydown', e => {
   else if (e.key === 'Escape' && $('dRest').classList.contains('on')) endDive();
   else if (e.key === 'Enter' && $('dSetup').classList.contains('on') && document.activeElement?.tagName !== 'SELECT' && !document.activeElement?.closest?.('button')) startDive($('dTask').value, dvMode);
 });
-// 後ろの暗いところを押したら、設定の画面は閉じる
+// clicking the dimmed backdrop closes the setup sheet
 $('dive').addEventListener('click', e => { if (e.target === $('dive') && $('dSetup').classList.contains('on')) $('dive').hidden = true; });
 function notify(title, body) { try { if (document.hidden && 'Notification' in window && Notification.permission === 'granted') new Notification(title, { body, silent: true }); } catch (_) {} }
-// 減圧おわりの合図：やわらかい2音
+// end-of-break signal: two soft notes
 function chime() {
   if (!S.settings.sound) return;
   try {
@@ -730,7 +732,7 @@ function chime() {
       o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 1); });
   } catch (_) {}
 }
-// 再読み込みしても続きから（時刻で数えているので、離れていた間も進んでいる。離れても責めない）
+// Resume after a reload (time is counted by the clock, so it keeps running while you are away; leaving is not punished)
 try {
   const saved = JSON.parse(localStorage.getItem(DIVE_KEY) || 'null');
   if (saved && S.tasks.some(t => t.id === saved.id)) {
@@ -740,12 +742,12 @@ try {
 } catch (_) {}
 window.UmiHome.dive = { openDive, startDive, surface, get dv() { return dv; } };
 
-// スマホの下のメニュー：設定（湖のようす）
+// phone bottom bar: Settings (lake & settings)
 $('mEnv').onclick = e => { e.stopPropagation(); $('envMenu').classList.toggle('open'); $('scrim').classList.toggle('open', $('envMenu').classList.contains('open')); };
 $('bedhint').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goTo('bed'); } });
 
-// ================================================================ 切り替え（白い札がすべる）
-// 中身を作り直す所（ポップアップ・設定）でも、前の位置から次の位置へすべらせる
+// ================================================================ segmented toggles (a white pill slides)
+// Even where the content is rebuilt (card, settings), slide from the previous position to the new one
 const segPrev = {};
 function syncSeg(seg, from) {
   if (!seg) return;
@@ -772,17 +774,27 @@ new MutationObserver(muts => {
 }).observe(document.body, { childList: true, subtree: true });
 document.querySelectorAll('.seg').forEach(s => syncSeg(s));
 addEventListener('resize', () => document.querySelectorAll('.seg.ready').forEach(s => syncSeg(s)));
-// 開いた画面が見えたときにも合わせる（閉じている間は幅が測れないことがある）
+// also sync when a panel becomes visible (widths cannot be measured while hidden)
 ['pop', 'envMenu', 'dive'].forEach(id => new MutationObserver(() => $(id).querySelectorAll('.seg').forEach(s => syncSeg(s))).observe($(id), { attributes: true, attributeFilter: ['class', 'hidden'] }));
 function kbdOpen() { document.body.classList.add('kbd-open'); setTimeout(() => document.body.classList.remove('kbd-open'), 400); }
-// ?ui=pop|env|dive|add|rest：その画面を開いた状態で表示する（スクリーンショットの確認用）
+// ?ui=pop|env|dive|add|rest opens that panel on load (for screenshot checks)
 {
   const ui = new URLSearchParams(location.search).get('ui');
   if (ui) setTimeout(() => {
     if (ui === 'pop') { const c = document.querySelector('#cards .card'); const r = c.getBoundingClientRect(); openPop(c.dataset.open, r.left + r.width / 2, r.bottom + 260); }
     if (ui === 'env') $('envNav').click();
     if (ui === 'dive') openDive();
-    if (ui === 'add') { openAdd(); $('addInput').value = '明日15時 統計の課題 #大学 1時間 必須'; showPv(); }
-    if (ui === 'rest') { dv = { id: focusId, min: 25, start: Date.now() - 26 * 60e3, bubbles: ['返信メール 明日', '資料を印刷'], ended: Date.now(), used: 25 }; showRest(25, S.tasks.find(t => t.id === focusId)); }
+    if (ui === 'add') { openAdd(); $('addInput').value = tr('addbox.placeholder').replace(/^(e\.g\.|例：)\s*/, ''); showPv(); }
+    if (ui === 'rest') { dv = { id: focusId, min: 25, start: Date.now() - 26 * 60e3, bubbles: getLang() === 'ja' ? ['返信メール 明日', '資料を印刷'] : ['reply to email tomorrow', 'print the handout'], ended: Date.now(), used: 25 }; showRest(25, S.tasks.find(t => t.id === focusId)); }
   }, 2500);
 }
+
+// Language switch: rebuild everything that is drawn from code
+onLang(() => {
+  render(); renderEnv(); renderAccount();
+  if (!$('dive').hidden && $('dSetup').classList.contains('on')) setMode(dvMode);
+  if (dv && !dv.ended) { const t = S.tasks.find(x => x.id === dv.id); $('dSub').textContent = dv.min ? tr('dive.subTimed', { m: dv.min }) : tr('dive.subOpen'); dvTick(); }
+  if (dv && dv.ended && $('dRest').classList.contains('on')) showRest(dv.used || 1, S.tasks.find(x => x.id === dv.id));
+  if ($('addbox').classList.contains('open')) { openAdd(); }
+  document.querySelectorAll('.seg.ready').forEach(sg => syncSeg(sg));
+});

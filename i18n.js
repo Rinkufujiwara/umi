@@ -168,8 +168,56 @@ const ja = {
   'list.title': 'Umi — 表', 'list.back': '← 湖へ戻る'
 };
 
+// table page (list.html / app.js)
+Object.assign(en, {
+  'L.title': 'Umi — table', 'L.areasNav': 'Areas and depths', 'L.allAreas': 'All areas', 'L.areas': 'Areas', 'L.newArea': '+ New area', 'L.newAreaAria': 'Name of the new area',
+  'L.depth': 'Depth', 'L.surface': 'Surface  today', 'L.shallows': 'Shallows  this week', 'L.depths': 'Depths  someday', 'L.bed': 'Lakebed  finished',
+  'L.clearSample': 'Remove sample tasks', 'L.export': 'Export data', 'L.import': 'Import data', 'L.today': 'Today',
+  'L.addPh': 'Add a task   e.g. tomorrow 3pm stats homework #school 1h', 'L.addAria': 'Add a task',
+  'L.env': 'Lake & settings', 'L.season': 'Season', 'L.weather': 'Sky and water', 'L.back': '← Back to the lake',
+  'L.notes': 'has notes', 'L.restore': 'Raise from the lakebed', 'L.finish': 'Finish and sink',
+  'L.f.task': 'Task', 'L.f.due': 'Due', 'L.f.time': 'Time', 'L.f.est': 'Estimate', 'L.f.area': 'Area', 'L.f.kind': 'Type', 'L.f.repeat': 'Repeat', 'L.f.pin': 'Depth', 'L.f.notes': 'Notes',
+  'L.none': 'None', 'L.mustLong': 'Must (real harm if skipped)', 'L.selfLong': 'Own (for your future)', 'L.byDue': 'By due date',
+  'L.pin.surface': 'Surface (today)', 'L.pin.shallows': 'Shallows (this week)', 'L.pin.depths': 'Depths (someday)',
+  'L.delete': 'Delete', 'L.close': 'Close', 'L.yesterday': 'Yesterday',
+  'L.empty.surface': 'The surface is calm today.', 'L.empty.shallows': 'A quiet week.', 'L.empty.depths': 'Nothing in the depths.',
+  'L.n': '{n}', 'L.more': 'Show more ({n} left)', 'L.bedEmpty': 'Finished tasks sink and pile up here.', 'L.bedWeek': '{n} this week', 'L.all': 'All',
+  'L.focusK': 'The one for now', 'L.focusNone': 'Nothing urgent on the surface today.', 'L.focusWhy': 'The first thing to do on today\'s surface',
+  'L.focusDone': 'Finish and sink', 'L.focusLater': 'Later (to the shallows)',
+  'L.tide': "Today's tide  {t} / ", 'L.budgetTitle': 'Change the hours you can use in a day', 'L.over': 'High tide: {t} over', 'L.left': '{t} left',
+  'L.sunk': 'Sank "{t}" to the lakebed', 'L.raised': 'Raised "{t}"', 'L.moved': 'Moved "{t}" to {s}', 'L.added': 'Floated on the {s}: {t}', 'L.deleted': 'Deleted "{t}"',
+  'L.pv.due': 'Due {d}', 'L.pv.someday': 'Depths (someday)', 'L.pv.est': 'Estimate {t}', 'L.pv.area': 'Area {a}', 'L.pv.newArea': ' (new)', 'L.pv.repeat': 'Repeat {r}',
+  'L.sampleCleared': 'Removed the sample tasks', 'L.imported': 'Imported {n} tasks', 'L.importFail': 'Could not import (this does not look like Umi data)',
+  'L.d.surface': 'Surface', 'L.d.shallows': 'Shallows', 'L.d.depths': 'Depths', 'L.d.bed': 'Lakebed'
+});
+Object.assign(ja, {
+  'L.title': 'Umi 一覧', 'L.areasNav': '海域と深さ', 'L.allAreas': 'すべての海域', 'L.areas': '海域', 'L.newArea': '＋ 新しい海域', 'L.newAreaAria': '新しい海域の名前',
+  'L.depth': '深さ', 'L.surface': '水面　今日', 'L.shallows': '浅瀬　今週', 'L.depths': '深み　いつか', 'L.bed': '湖底　終えたもの',
+  'L.clearSample': '見本のタスクを消す', 'L.export': 'データを書き出す', 'L.import': 'データを読み込む', 'L.today': '今日',
+  'L.addPh': 'タスクを追加　例：明日15時 統計の課題 #大学 1時間', 'L.addAria': 'タスクを追加',
+  'L.env': '湖のようす', 'L.season': '季節', 'L.weather': '空と水面', 'L.back': '← 湖へ戻る',
+  'L.notes': 'メモあり', 'L.restore': '湖底から戻す', 'L.finish': '終えて沈める',
+  'L.f.task': 'タスク', 'L.f.due': '期限', 'L.f.time': '時刻', 'L.f.est': '見積もり', 'L.f.area': '海域', 'L.f.kind': '区別', 'L.f.repeat': 'くり返し', 'L.f.pin': '深さ', 'L.f.notes': 'メモ',
+  'L.none': 'なし', 'L.mustLong': '必須（やらないと実害）', 'L.selfLong': '自主（将来のため）', 'L.byDue': '期限で決める',
+  'L.pin.surface': '水面（今日）', 'L.pin.shallows': '浅瀬（今週）', 'L.pin.depths': '深み（いつか）',
+  'L.delete': '削除', 'L.close': '閉じる', 'L.yesterday': '昨日',
+  'L.empty.surface': '今日の水面は凪いでいます。', 'L.empty.shallows': '今週は静かです。', 'L.empty.depths': '深みには何もありません。',
+  'L.n': '{n}件', 'L.more': 'さらに表示（残り{n}件）', 'L.bedEmpty': '終えたタスクは、ここに沈んで積もります。', 'L.bedWeek': '今週 {n}件', 'L.all': 'すべて',
+  'L.focusK': 'いまの一つ', 'L.focusNone': '今日の水面に、急ぐものはありません。', 'L.focusWhy': '今日の水面でいちばん先にやること',
+  'L.focusDone': '終えて沈める', 'L.focusLater': 'あとで（浅瀬へ）',
+  'L.tide': '今日の潮位　{t} ／ ', 'L.budgetTitle': '1日に使える時間を変える', 'L.over': '満ち潮：{t}多い', 'L.left': 'あと{t}',
+  'L.sunk': '「{t}」を湖底に沈めました', 'L.raised': '「{t}」を引き上げました', 'L.moved': '「{t}」を{s}へ', 'L.added': '{s}に浮かべました：{t}', 'L.deleted': '「{t}」を削除しました',
+  'L.pv.due': '期限 {d}', 'L.pv.someday': '深み（いつか）', 'L.pv.est': '見積もり {t}', 'L.pv.area': '海域 {a}', 'L.pv.newArea': '（新しく作る）', 'L.pv.repeat': 'くり返し {r}',
+  'L.sampleCleared': '見本のタスクを消しました', 'L.imported': '{n}件のタスクを読み込みました', 'L.importFail': '読み込めませんでした（Umi のデータではないようです）',
+  'L.d.surface': '水面', 'L.d.shallows': '浅瀬', 'L.d.depths': '深み', 'L.d.bed': '湖底'
+});
+
 const DICT = { en, ja };
-let lang = (() => { try { return localStorage.getItem(KEY); } catch (_) { return null; } })();
+let lang = (() => {
+  const q = new URLSearchParams(location.search).get('lang'); // ?lang=ja / ?lang=en picks and remembers a language
+  if (q) { try { localStorage.setItem(KEY, q); } catch (_) {} return q; }
+  try { return localStorage.getItem(KEY); } catch (_) { return null; }
+})();
 if (!DICT[lang]) lang = 'en';
 
 export const getLang = () => lang;

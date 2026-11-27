@@ -15,19 +15,20 @@ const FIREBASE_WEB_KEY = "AIzaSyAWZAOK24ufgVlRy4aZb6nE-8rv_HIt8jA"; // public we
 // the next one is tried. GEMINI_MODEL in Vercel, if set, is tried first.
 const MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
 
-const PROMPT = `あなたはタスク管理の評価係です。ユーザーのタスクそれぞれについて、次の4つを1〜10の整数で判断してください。
-締切・残り日数・並び順はシステムが計算するので、判断しないでください。
+const PROMPT = `You are the evaluator in a task manager. For each of the user's tasks, judge the four values below as integers from 1 to 10.
+Do not judge deadlines, days left or ordering: the system computes those.
 
-- impact（価値）: 完了したとき、学業・キャリア・スキル・人生の目標にどれだけプラスになるか。単なる事務は1〜3、自己投資や重要なプロジェクトは7〜10。
-- penalty（未達時の痛手）: やらない・遅れたときの実害。公的手続き・単位・お金・他人との約束は7〜10、自主的な学習や趣味は1〜2。
-- effort（かかる時間）: 1=15分 2=30分 3=1時間 4=2時間 5=半日 6=1日 7=2日 8=4日 9=1週間 10=2週間以上。大きすぎるものは、最初のひと区切り分で見積もる。
-- dependency（誰かが待っているか）: 自分ひとりで完結なら1、相手がいる約束や、止めると他の人・後の作業が止まるなら6〜10。
-- must（必須かどうか）: true か false。やらないと実害が出る・取り返しがつかないなら true（必須）。自分ひとりのことでもよい（例：予約、申請・手続き、支払い、期限のある提出、単位）。やらなくても誰も困らないが、自分の将来や目標のために自主的にやることなら false（自主。例：練習、作品づくり、ポートフォリオ、ハッカソンの準備）。「誰かが待っているか」では決めないこと。
-- must_reason: 必須／自主と判断した理由を日本語で短く1文（30字以内）。
-- reason: 4つの値をなぜそう判断したかを日本語で短く1文（40字以内）。
+- impact (value): how much finishing it helps studies, career, skills or life goals. Plain chores 1–3; self-investment or important projects 7–10.
+- penalty (cost of missing it): the real harm of skipping or being late. Official procedures, credits, money and promises to others 7–10; optional study or hobbies 1–2.
+- effort (time it takes): 1=15 min 2=30 min 3=1 h 4=2 h 5=half a day 6=1 day 7=2 days 8=4 days 9=1 week 10=2 weeks or more. For something very large, estimate the first meaningful chunk.
+- dependency (is someone waiting): 1 if it is entirely your own; 6–10 for promises involving others, or when stopping it blocks other people or later work.
+- must (required or not): true or false. true when skipping it causes real harm or cannot be undone, even if it only concerns the user (e.g. bookings, applications and procedures, payments, submissions with a deadline, course credits). false when nobody is hurt by skipping it but the user does it for their own future or goals (e.g. practice, making things, a portfolio, preparing for a hackathon). Do not decide this from whether someone is waiting.
+- must_reason: one short sentence on why it is must or not (about 15 words at most).
+- reason: one short sentence on why you chose the four values (about 20 words at most).
 
-ユーザーの目標・プロジェクト名が添えてあれば、それに直結するタスクは impact を高めにしてください。
-「ユーザーが直した例」があれば、それがこの人の物差しです。それに合わせてください。`;
+Write must_reason and reason in the language given as "lang" in the input ("en" = English, "ja" = Japanese).
+If the user's goals or project names are given, rate tasks that serve them directly with a higher impact.
+If "examples" corrected by the user are given, they are this person's yardstick: match them.`;
 
 const SCHEMA = {
   type: "OBJECT",
@@ -93,7 +94,8 @@ module.exports = async (req, res) => {
     must: e.must === true,
   }));
 
-  const input = { today: new Date().toISOString().slice(0, 10), goals, examples, tasks };
+  const lang = body.lang === "ja" ? "ja" : "en";
+  const input = { today: new Date().toISOString().slice(0, 10), lang, goals, examples, tasks };
   const models = [process.env.GEMINI_MODEL, ...MODELS].filter((m, i, a) => m && a.indexOf(m) === i);
   let r = null, used = "";
   for (const model of models) {

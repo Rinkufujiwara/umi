@@ -597,3 +597,7 @@ html[data-night="1"] #envMenu p { color: #b9d3d8 !important; }
 .greet { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
 .greet h1 { flex: none; }
 .greet .meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* the add button has a full label and a short one for phones (word order differs by language) */
+.addbtn .short { display: none; }
+@media (max-width: 820px) { .addbtn .long { display: none; } .addbtn .short { display: inline; } }
