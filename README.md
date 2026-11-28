@@ -58,7 +58,7 @@ The two are separate A2A agents, each with its own endpoint and agent card, and 
 ### Structure
 
 ```mermaid
-flowchart LR
+flowchart TB
   subgraph Browser["Browser (Umi)"]
     UI["Nagi mode<br/>home.js"]
     REP["buildReport()<br/>nagi.js"]
