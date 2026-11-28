@@ -665,3 +665,30 @@ html[data-night="1"] .tide .meter i.on:nth-child(3) { background: #5fa3ad; }
 .greet .nagimsg.thinking { color: var(--sub); animation: nagiThink 1.6s ease-in-out infinite; }
 @keyframes nagiThink { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .greet .nagimsg.thinking { animation: none; } }
+
+/* ---------------------------------------------------------------- Shiomi asks back (docs/ui-review/askback-mock.html)
+   A small "?" floats with the buoy (no ripple or glow), the tag says Shiomi has a question, and the card is drawn
+   from Shiomi's A2UI message with Umi's own parts, on the task card's surface and motion. */
+.askq { position: fixed; z-index: 4; width: 20px; height: 20px; padding: 0; border-radius: 50%; background: #fff; color: var(--pri); font: 700 13px/1 inherit;
+  border: 1.5px solid #4f9aa2; box-shadow: 0 3px 8px rgba(20,50,60,.22); display: grid; place-items: center; cursor: pointer; zoom: var(--z);
+  opacity: 0; pointer-events: none; transition: opacity .25s; }
+.askq.on { opacity: 1; pointer-events: auto; }
+.tag.asking b { color: var(--pri); font-weight: 600; }
+.greet button.nagimsg { border: 0; background: none; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+.pop.askcard { width: 460px; max-width: calc(100vw / var(--z) - 24px); min-width: 0; }
+.askcard .a-col { display: flex; flex-direction: column; }
+.askcard .a-who { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); margin-bottom: 8px; }
+.askcard .a-who::before { content: 'S'; width: 20px; height: 20px; border-radius: 50%; background: var(--pri); color: #fff; font-size: 11px; font-weight: 600; display: grid; place-items: center; }
+html[lang="ja"] .askcard .a-who::before { content: '潮'; }
+.askcard h3 { margin: 0 0 4px; font-size: 16px; line-height: 1.4; }
+.askcard .a-sub { color: var(--sub); margin: 0; font-size: 12px; }
+.askcard .a-field { margin-top: 14px; }
+.askcard .a-field .lbl { font-size: 11px; color: var(--sub); margin: 0 0 6px; }
+.askcard .a-date { margin-top: 8px; }
+.askcard .in { height: 36px; width: 100%; box-sizing: border-box; border-radius: var(--b-r); border: 1px solid rgba(22,48,58,.12); background: rgba(255,255,255,.96); padding: 0 12px; font: inherit; font-size: 13px; color: var(--ink); }
+.askcard .in::placeholder { color: #6f8288; }
+.askcard .in:focus { outline: 2px solid #4f9aa2; outline-offset: 1px; }
+.askcard .a-row { display: flex; gap: 4px; justify-content: flex-end; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.askcard .a-foot { margin-top: 8px; font-size: 11px; color: #7f939b; }
+html[data-night="1"] .askcard .in { background: rgba(255,255,255,.1); color: #eaf6f6; border-color: rgba(255,255,255,.18); }
+html[data-night="1"] .askq { background: rgba(40,70,82,.95); color: #cfe6ea; }

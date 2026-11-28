@@ -1,0 +1,16 @@
+# Cloudflare Pages settings kept in the repo: only the D1 binding for Shiomi's memory.
+# Secrets (GEMINI_API_KEY, ALLOWED_EMAILS) stay in the Pages project, never here.
+name = "umi-lake"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "MEMORY"
+database_name = "umi-memory"
+database_id = "bcc03d4f-7271-476d-900d-ccf5e4d2c287"
+migrations_dir = "migrations"
+
+[vars]
+# Shiomi on Cloud Run (public address; the agent card is at /.well-known/agent-card.json)
+SHIOMI_URL = "https://umi-shiomi-1048912442846.europe-west1.run.app"

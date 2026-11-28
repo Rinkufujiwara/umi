@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Mock: Shiomi asks back</title>
+<!-- Follows docs/ui-review/README.md (button roles, toggles, motion) and is drawn at the live UI scale (--z: .75). -->
+<style>
+  :root { --ink: #16303a; --sub: #4f6670; --line: rgba(22,48,58,.09); --pri: #2f6670; --b-r: 10px; }
+  body { margin: 0; width: 1440px; height: 900px; position: relative; overflow: hidden; font-family: "Segoe UI", "Yu Gothic UI", system-ui, sans-serif; color: var(--ink);
+    background: url(askback-bg.png) 0 0 / 1440px 900px no-repeat; }
+  .ui { zoom: .75; } /* the same scale as the live panels */
+
+  /* the buoy Shiomi asks about: a small "?" that floats with the buoy (no ripples or glow, per the motion rules) */
+  .q { position: absolute; left: 618px; top: 496px; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: var(--pri);
+    font-weight: 700; font-size: 13px; display: grid; place-items: center; border: 1.5px solid #4f9aa2; box-shadow: 0 3px 8px rgba(20,50,60,.22); }
+  /* its name tag, in the "just added" tag style */
+  .tag { position: absolute; padding: 4px 10px 4px 8px; border-radius: 99px; background: #fff; border: 1.5px solid #4f9aa2; font-size: 12px; font-weight: 600;
+    box-shadow: 0 0 0 4px rgba(79,154,162,.22), 0 6px 18px rgba(20,50,60,.2); white-space: nowrap; }
+  .tag i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #c9c4b8; margin-right: 6px; vertical-align: 1px; }
+  .tag b { color: var(--pri); font-weight: 600; }
+
+  /* greeting line while Nagi waits (same place and pulse as "Nagi is choosing…") */
+  .wait { position: absolute; font-size: 16px; color: var(--sub); background: #a8bbc3; padding: 4px 120px 6px 0; } /* covers the date: in the app this line replaces it */
+
+  /* the card: same surface as the task card (#pop), opens beside the buoy */
+  .card { position: absolute; width: 460px; padding: 16px; border-radius: 16px; background: rgba(244,249,250,.92); border: 1px solid rgba(255,255,255,.7);
+    box-shadow: 0 12px 36px rgba(20,50,60,.2); font-size: 13px; }
+  .who { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); margin-bottom: 8px; }
+  .who i { width: 20px; height: 20px; border-radius: 50%; background: var(--pri); color: #fff; font-style: normal; font-size: 11px; font-weight: 600; display: grid; place-items: center; }
+  h3 { margin: 0 0 4px; font-size: 16px; line-height: 1.4; }
+  .sub { color: var(--sub); margin: 0; font-size: 12px; }
+  .lbl { font-size: 11px; color: var(--sub); margin: 14px 0 6px; }
+  /* toggle: a white pill in a grey track (the same .seg as weight, season, Dive time) */
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: var(--b-r); background: rgba(22,48,58,.08); }
+  .seg span { height: 30px; padding: 0 12px; border-radius: 8px; display: inline-flex; align-items: center; color: var(--sub); }
+  .seg span.on { background: #fff; box-shadow: 0 1px 3px rgba(20,50,60,.18); color: var(--ink); font-weight: 600; }
+  .in { height: 36px; border-radius: var(--b-r); border: 1px solid rgba(22,48,58,.12); background: rgba(255,255,255,.96); display: flex; align-items: center; padding: 0 12px; color: #6f8288; }
+  .go { display: flex; gap: 4px; justify-content: flex-end; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .b { height: 36px; padding: 0 14px; border-radius: var(--b-r); display: inline-flex; align-items: center; font-weight: 500; }
+  .b.pri { background: var(--pri); color: #fff; font-weight: 600; box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, 0 2px 6px rgba(20,60,70,.22); }
+  .b.quiet { color: #2f5560; padding: 0 10px; }
+  .foot { margin-top: 8px; font-size: 11px; color: #7f939b; }
+
+  /* reviewer notes (not part of the design) */
+  .note { position: absolute; background: #1f2d33; color: #fff; font-size: 12px; padding: 7px 10px; border-radius: 8px; max-width: 270px; line-height: 1.45; }
+  .note::before { content: attr(data-n); display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 6px; border-radius: 50%; background: #f2b134; color: #1f2d33; font-weight: 700; font-size: 11px; }
+</style></head>
+<body>
+  <div class="wait ui" style="left:436px;top:52px">Nagi is waiting for your answer to Shiomi…</div>
+  <div class="tag ui" style="left:600px;top:615px"><i></i>prep · <b>Shiomi has a question</b></div>
+  <div class="q">?</div>
+
+  <div class="card ui" style="left:900px;top:395px">
+    <div class="who"><i>S</i>Shiomi · not sure how heavy this is</div>
+    <h3>What is "prep" for?</h3>
+    <p class="sub">The title alone could be many things. One answer lets Shiomi weigh it.</p>
+    <div class="lbl">It is for</div>
+    <div class="seg"><span>Class or exam</span><span class="on">Work · Cypher</span><span>Personal</span><span>Other</span></div>
+    <div class="lbl">Deadline</div>
+    <div class="seg"><span class="on">None</span><span>Today</span><span>This week</span><span>Pick a date…</span></div>
+    <div class="lbl">Anything else (optional)</div>
+    <div class="in">e.g. slides for Monday's meeting</div>
+    <div class="go"><span class="b quiet">Let Shiomi guess</span><span class="b pri">Answer</span></div>
+    <div class="foot">Asked over A2A (input-required) · drawn from an A2UI message with Umi's own parts</div>
+  </div>
+
+  <div class="note" data-n="1" style="left:436px;top:84px">Greeting line while Nagi mode waits for your answer (same spot and quiet pulse as "Nagi is choosing…").</div>
+  <div class="note" data-n="2" style="left:230px;top:500px">The buoy gets a small "?" that floats with it, and its tag says Shiomi has a question. No ripples or glow (motion rules). Clicking either opens the card.</div>
+  <div class="note" data-n="3" style="left:1085px;top:250px">Card: the task card's surface. Opens rising 8px in 220 ms (ease-out), closes sinking in 160 ms.</div>
+  <div class="note" data-n="4" style="left:1095px;top:700px">Choices are toggles (white pill slides, 300 ms). One primary button (Answer); "Let Shiomi guess" is quiet and scores it with low confidence.</div>
+</body></html>

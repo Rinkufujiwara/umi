@@ -42,18 +42,21 @@ Values you set by hand win over Shiomi, and Shiomi wins over a keyword estimate.
 
 ## Agents: Shiomi and Nagi over A2A
 
-Nagi mode is where the agents matter. Instead of only sorting by the formula, a **planner agent (Nagi)** picks the
-three tasks to keep afloat and gives a one-line reason for each, using the judgments of a second agent (**Shiomi**).
-The two are separate A2A agents, each with its own endpoint and agent card, and work is handed between them over A2A.
+Nagi mode is where the agents matter. A **planner agent (Nagi)** picks the three tasks to keep afloat and gives a
+one-line reason for each. When a judgment looks doubtful, Nagi decides by itself to consult a second agent, the
+**judge (Shiomi)**. Shiomi has a memory of how you corrected it and how long things really took, and when a title is
+too vague it **asks you back** instead of guessing. The two agents are written in different languages and run on
+different clouds; they are connected only by A2A.
 
 | | Shiomi (judge) | Nagi (planner) |
 |---|---|---|
 | Question | "How heavy is this task?" | "Which three now, and why?" |
-| Endpoint | `/api/agents/shiomi` | `/api/agents/nagi` |
-| Input | Task titles (up to 12) and the language | A **ShiomiReport**: today's and this week's open tasks with due dates, slack, the formula's order, and Shiomi's judgments |
-| Output | Per task: impact, penalty, effort, dependency (1–10), must, confidence (0–1), a reason | A **NagiPlan**: up to three tasks to keep with a reason each, optional suggestions, one calm message |
-| How | One Gemini call with a JSON schema | A Gemini function-calling loop (up to 6 rounds) with four read-only tools |
-| Changes your data | No | No — it only proposes |
+| Runs on | Google Cloud Run, Python + **Google ADK** (`agents/shiomi/`) | Cloudflare Pages Functions, JavaScript (`functions/api/agents/nagi.js`) |
+| Agent card | [`/.well-known/agent-card.json`](https://umi-shiomi-1048912442846.europe-west1.run.app/.well-known/agent-card.json) (A2A 1.0) | [`/api/agents/nagi`](https://umi-lake.pages.dev/api/agents/nagi) (A2A 0.3) |
+| Tools | `recall_corrections(title)`, `effort_bias()` (memory, read through `/api/memory`), `ask_user(...)` (long-running: pauses the task) | `get_day_budget`, `get_free_time`, `get_task`, `get_dive_history`, **`ask_shiomi(task_ids, why)`** |
+| Output | Per task: impact, penalty, effort, dependency (1–10), must, confidence, a reason, and what from memory changed it | A **NagiPlan**: up to three tasks with a reason each, optional suggestions, one calm message, and a trace |
+| Model | gemini-2.5-flash (key in Secret Manager) | gemini-2.5-flash |
+| Changes your data | Only its memory rows (answers you gave it) | No — it only proposes |
 
 ### Structure
 
@@ -61,128 +64,119 @@ The two are separate A2A agents, each with its own endpoint and agent card, and 
 flowchart TB
   subgraph Browser["Browser (Umi)"]
     UI["Nagi mode<br/>home.js"]
-    REP["buildReport()<br/>nagi.js"]
+    CARD["question card<br/>a2ui.js (Umi's own parts)"]
+    REC["memory.js<br/>hand corrections · Dive minutes"]
     CHK{"checkPlan()<br/>rules"}
     F["formula plan<br/>top 3 by W"]
   end
 
-  subgraph Pages["Cloudflare Pages Functions (umi-lake.pages.dev)"]
-    ORCH["/api/nagi<br/>orchestrator"]
-    subgraph SA["Shiomi agent"]
-      SC["GET agent card"]
-      SJ["POST message/send<br/>skill: judge-tasks"]
+  subgraph CF["Cloudflare Pages (umi-lake.pages.dev)"]
+    ORCH["/api/nagi<br/>calls only Nagi"]
+    subgraph NA["Nagi agent (JavaScript)"]
+      NP["message/send<br/>skill: plan-nagi"]
+      NT["tools: day budget · free time<br/>task · dive history"]
+      ASK["ask_shiomi<br/>A2A client (@a2a-js/sdk)"]
     end
-    subgraph NA["Nagi agent"]
-      NC["GET agent card"]
-      NP["POST message/send<br/>skill: plan-nagi"]
-      TOOLS["read-only tools<br/>get_day_budget · get_free_time<br/>get_task · get_dive_history"]
-    end
-    AUTH["sign-in check<br/>Firebase ID token + ALLOWED_EMAILS"]
+    MEM["/api/memory"]
+    D1[("D1 umi-memory<br/>corrections · actuals<br/>clarifications · pending_tasks")]
   end
 
-  G["Gemini API<br/>2.5 Flash-Lite"]
+  subgraph GCP["Google Cloud Run (umi-shiomi)"]
+    subgraph SA["Shiomi agent (Python + ADK)"]
+      SJ["A2A SendMessage<br/>to_a2a() · input-required"]
+      ST["tools: recall_corrections · effort_bias<br/>ask_user (long-running)"]
+      PS["PendingTaskStore"]
+    end
+    SM["Secret Manager<br/>Gemini key"]
+  end
 
-  UI --> REP -->|"POST report + ID token"| ORCH
-  ORCH -->|"A2A: resolve card"| SC
-  ORCH -->|"A2A: tasks to judge"| SJ
-  ORCH -->|"A2A: resolve card"| NC
-  ORCH -->|"A2A: ShiomiReport"| NP
-  NP <--> TOOLS
+  G["Gemini 2.5 Flash"]
+
+  UI -->|"POST report + ID token"| ORCH -->|"A2A"| NP
+  NP <--> NT
+  NP --> ASK -->|"A2A 1.0, when a judgment looks doubtful"| SJ
+  SJ <--> ST
+  ST -->|"user's token"| MEM --> D1
+  PS -->|"paused tasks"| MEM
+  NP -->|"paused plan"| D1
+  REC --> MEM
   SJ --> G
   NP --> G
-  ORCH -.-> AUTH
-  SJ -.-> AUTH
-  NP -.-> AUTH
-  ORCH -->|"NagiPlan + trace"| CHK
+  SM -.-> SJ
+  ORCH -->|"plan + trace"| CHK
+  ORCH -->|"Shiomi's question (A2UI)"| CARD -->|"answer"| ORCH
   CHK -->|passes| UI
   CHK -->|"fails, error, timeout"| F --> UI
 ```
 
-### One planning run
+### One planning run, with a question
 
 ```mermaid
 sequenceDiagram
   participant U as You
   participant B as Umi (browser)
-  participant O as /api/nagi
-  participant S as Shiomi agent
-  participant N as Nagi agent
-  participant G as Gemini
+  participant N as Nagi (Cloudflare)
+  participant S as Shiomi (Cloud Run, ADK)
+  participant M as /api/memory (D1)
 
   U->>B: turn on Nagi mode
-  B->>B: buoys stay up, "Nagi is choosing…"
-  B->>B: build ShiomiReport (judgments + due, slack, order W, minutes left today)
-  B->>O: POST /api/nagi (report, Firebase ID token)
-  O->>O: check token and allow-list
-  opt some tasks are not judged yet (keyword guess or low confidence)
-    O->>S: GET agent card
-    O->>S: message/send (data part: up to 12 tasks)
-    S->>G: judge with a JSON schema
-    S-->>O: data part: scores, must, confidence, reason
-    O->>O: merge into the report (values you set are never replaced)
-  end
-  O->>N: GET agent card
-  O->>N: message/send (data part: ShiomiReport)
-  loop up to 6 rounds
-    N->>G: plan (with tool declarations)
-    G-->>N: function calls
-    N->>N: run read-only tools on the report
-  end
-  N-->>O: data part: NagiPlan + tools it called
-  O-->>B: plan + trace
+  B->>N: /api/nagi → A2A message/send (ShiomiReport, ID token)
+  N->>N: get_day_budget, get_free_time
+  Note over N: "prep" is only a keyword guess (source rule, confidence 0.3)
+  N->>S: ask_shiomi → A2A SendMessage (tasks + why)
+  S->>M: recall_corrections("prep"), effort_bias()
+  M-->>S: nothing explains "prep"
+  S->>S: ask_user (long-running tool)
+  S->>M: save the paused task + ADK session (pending_tasks)
+  S-->>N: Task input-required + A2UI question card
+  N->>M: save the paused plan (pending_tasks)
+  N-->>B: input-required → { ask }
+  B-->>U: "?" on the buoy, "Nagi is waiting for your answer to Shiomi…"
+  U->>B: "work" → Answer
+  B->>N: same Nagi task: { answer }
+  N->>S: same taskId / contextId: function_response for ask_user
+  S->>M: (if the instance slept) read the paused task back
+  S->>M: record the answer (clarifications)
+  S-->>N: Task completed: new judgment (confidence 0.8, "User clarified 'prep' is for work")
+  N->>N: finish the plan with the new judgment
+  N-->>B: NagiPlan + trace (who called whom, and why)
   B->>B: checkPlan(): any rule broken → formula
-  B-->>U: water swells, all but three sink, each kept buoy shows Nagi's "why"
+  B-->>U: all but three sink, each kept buoy shows Nagi's "why"
 ```
 
-A real run on the live site (2026-11-28, five made-up tasks, one of them only keyword-guessed) took about 4 seconds
-end to end and returned this trace with the plan:
+Measured on the live site on 2026-11-28 (made-up tasks): a plan where Nagi consulted Shiomi took 15.8 s
+(Shiomi 7.6 s of it); a run where Shiomi asked back paused after 9.5 s, and the answer led to a plan 12.5 s later
+(Shiomi 5.3 s). The traces are in `docs/story-facts.md`.
 
-```json
-{ "engine": "cloudflare-a2a", "shiomi": 1, "nagi": true,
-  "tools": ["get_day_budget", "get_free_time"], "model": "gemini-2.5-flash-lite" }
-```
+### How the A2A connection works
 
-Shiomi judged the one unclear task ("Prep"), Nagi checked the time left and the calendar (not connected), and kept the
-assignment due tonight, the rent and the daily Spanish words. It also suggested a dive for a task it had *not* kept;
-`checkPlan()` drops that kind of suggestion (see the guard rails below).
+- **Two kinds of A2A server.** Shiomi is served by ADK's `to_a2a()` (a2a-sdk 1.3, protocol 1.0, with 0.3 compatibility).
+  Nagi's server is a small JSON-RPC `message/send` handler on Cloudflare that returns A2A Tasks
+  (`completed`, or `input-required` while it waits).
+- **The client.** Nagi's `ask_shiomi` reads Shiomi's agent card with the official A2A JS SDK (`@a2a-js/sdk`) and
+  sends the doubtful tasks as a message; the reply is a Task.
+- **Asking back.** Shiomi's `ask_user` is an ADK `LongRunningFunctionTool`. ADK turns the paused call into task state
+  `input-required`; Shiomi adds the question as A2UI v0.9 messages (data parts, mimeType `application/json+a2ui`,
+  basic catalog). The card says so in two extensions: A2UI, and Umi's ask-back note. The browser draws only a fixed set of
+  components with its own parts (`a2ui.js`); the agent never writes HTML.
+- **Resuming.** The answer goes back as a `function_response` data part with the same taskId and contextId.
+  Cloud Run scales to zero, so a paused task and its ADK session are saved to D1 (`pending_tasks`) and read back on
+  any instance. Nagi's own paused plan is saved the same way.
+- **Sign-in.** Every call carries your Firebase ID token. Nagi, `/api/memory` and Shiomi each check it against the
+  allow-list. Shiomi forwards it to `/api/memory`, which takes the uid from the token, so each person's memory is
+  separate and no extra secret is needed.
+- **Limits.** At most 2 consultations of up to 4 tasks per plan, and at most one question to you per plan.
 
-### How the A2A handoff works
+### Shiomi's memory (`/api/memory`, Cloudflare D1)
 
-- **Agent cards.** `GET /api/agents/shiomi` and `GET /api/agents/nagi` return an A2A agent card (protocol 0.3.0):
-  name, description, endpoint URL, one skill (`judge-tasks` / `plan-nagi`), JSON in and out, and a bearer
-  security scheme (the Firebase ID token). They are public: open
-  [shiomi](https://umi-lake.pages.dev/api/agents/shiomi) or [nagi](https://umi-lake.pages.dev/api/agents/nagi) in a browser.
-- **Messages.** The orchestrator (`/api/nagi`) first fetches the card, then sends a JSON-RPC 2.0 request with
-  method `message/send`. The payload is a message with one **data part** (structured JSON, not prose).
-  The agent answers with a message whose data part holds the result. A `contextId` ties the calls of one run together.
-- **Real HTTP, same project.** Both agents live in the same Cloudflare Pages project as the app, but the
-  orchestrator calls them over HTTP like any other A2A client would, so either agent can be called or tested on its own.
-  The token travels with every call and each agent checks it again.
-- **What crosses the boundary.** Shiomi sees only task titles and the language. Nagi sees the ShiomiReport
-  (no notes, nothing from the lakebed).
-- **What is not there.** Only `message/send` is implemented: no streaming, no push notifications, no long-running tasks.
-
-### What each agent actually does
-
-**Shiomi** (`functions/api/agents/shiomi.js`) scores each task 1–10 on impact, penalty, effort and dependency,
-decides must or not ("real harm or no way back if skipped", not "someone is waiting"), and says how sure it is.
-Gemini answers in a fixed JSON schema; the server clamps every number and drops unknown ids.
-In a planning run it is asked only about tasks the report does not know well, and its answer is used for that plan only.
-(A similar judgment also runs on its own whenever you add or rename a task, through `/api/weigh`. Those results are
-saved on the task and shown on its card, so in practice most tasks reach Nagi already judged.)
-
-**Nagi** (`functions/api/agents/nagi.js`) is given the rules of a plan in its instruction: values you set are fixed,
-overdue must-dos always stay, prefer little slack, must, high penalty and someone waiting, fit the minutes left today,
-lean on due dates when Shiomi is unsure, suggest little, and write one calm sentence. It decides which tools to call:
-
-| Tool | Returns | Notes |
+| Table | Written when | Used by |
 |---|---|---|
-| `get_day_budget` | minutes per day, used today, left, planned for today | |
-| `get_free_time` | free blocks today | **not connected yet**: always answers "calendar not connected" |
-| `get_task(task_id)` | everything the report holds about one task | |
-| `get_dive_history` | recent focus sessions per task | |
+| `corrections` | you change a weight by hand (card buttons, dragging a buoy, "lighter") | `recall_corrections`: similar titles (shared words) and what you changed |
+| `actuals` | a Dive ends | `effort_bias`: real minutes against the estimate, per task |
+| `clarifications` | you answer Shiomi's question | `recall_corrections`: so it does not ask the same thing twice |
+| `pending_tasks` | a task is waiting for your answer | Shiomi's task store and Nagi's paused plan |
 
-The tools only read the report sent with the request; none can read or change your stored data.
+Similar tasks are found by shared words in the title (Japanese by character pairs). Embedding search is not built.
 
 ### Guard rails in the browser (`nagi.js`)
 
@@ -192,31 +186,38 @@ rejects the whole plan if an overdue task **you** marked must is missing; accept
 `validUntil` at four hours. Suggestions run only when you tap them, through the same code as the normal buttons.
 
 Nagi mode falls back to the formula (top three by W) when you are signed out, the agent is turned off in Settings,
-the server answers with an error, there is no answer within 25 seconds, or the plan breaks a rule.
-A formula plan is labelled "Nagi (formula)" on the cards, so you can tell which one you are looking at.
-A plan is kept until its `validUntil` (about three hours) and asked for again at most every ten minutes.
+the server answers with an error, there is no answer within 75 seconds, or the plan breaks a rule.
+A formula plan is labelled "Nagi (formula)" on the cards. While Shiomi's question is open, nothing sinks.
+If you press "Let Shiomi guess", Shiomi judges with a low confidence and nothing is recorded.
 
 ### Not built yet
 
 - Calendar access for `get_free_time` (read-only Google Calendar).
-- Suggestions as A2UI-style cards, and a fixed evaluation set for prompt changes.
-- The same two agents on Google's ADK for Cloud Run are kept in `docs/reference/adk-agents/` as a reference; they are not deployed.
+- Embedding search for similar tasks (Vectorize + Workers AI).
+- Using Shiomi from other apps over A2A (e.g. Life Dashboard).
+- The quick judgment when you add or rename a task (`/api/weigh`) is still one Gemini call on Cloudflare, not Shiomi.
 
 Design notes and the full report and plan formats: `docs/nagi-agent-design.md`.
+
 
 ## Built with
 
 three.js (Water, Sky), GSAP (Observer), SunCalc, chrono-node, SortableJS, tinykeys, Lenis. Firebase Auth and Firestore.
-Gemini 2.5 Flash-Lite (Flash as a fallback). Hosted on Cloudflare Pages; the server side is Pages Functions.
+Gemini 2.5 Flash and Flash-Lite. Google ADK + a2a-sdk (Python) for Shiomi on Cloud Run; the official A2A JS SDK for Nagi's client.
+The app and Nagi are hosted on Cloudflare Pages (Pages Functions, D1 for Shiomi's memory).
 
 The front end has no build step: the browser loads plain ES modules.
 
 ```
 python -m http.server 8835       # front end only (the agents need Pages Functions)
 npm run deploy                   # copy the site into dist/ and deploy to Cloudflare Pages (Wrangler)
+cd agents/shiomi && python tests/test_flow.py    # Shiomi's ask → pause → resume flow, offline
 ```
 
-Pages settings (never in the repo): `GEMINI_API_KEY` (secret), `ALLOWED_EMAILS`, and optionally `GEMINI_MODEL`.
+Shiomi is deployed with `gcloud run deploy umi-shiomi --source agents/shiomi` (region europe-west1), with
+`GOOGLE_API_KEY` from Secret Manager (`umi-gemini-key`) and `ALLOWED_EMAILS`, `PUBLIC_URL`, `MEMORY_URL` as settings.
+
+Pages secrets (never in the repo): `GEMINI_API_KEY`, `ALLOWED_EMAILS`. `wrangler.toml` holds the D1 binding and `SHIOMI_URL`.
 
 | Path | What |
 |---|---|
@@ -224,10 +225,13 @@ Pages settings (never in the repo): `GEMINI_API_KEY` (secret), `ALLOWED_EMAILS`,
 | `store.js` | data, the weighting formula, placement |
 | `nagi.js` | ShiomiReport, the formula plan, `checkPlan()`, the call to `/api/nagi` |
 | `cloud.js` | sign-in, Firestore sync, Shiomi's `/api/weigh` calls |
-| `functions/api/agents/` | the Shiomi and Nagi A2A agents |
-| `functions/api/nagi.js`, `functions/api/weigh.js` | the orchestrator, and Shiomi's quick judgment |
+| `functions/api/agents/nagi.js` | the Nagi A2A agent (with `ask_shiomi`) |
+| `functions/api/nagi.js`, `functions/api/weigh.js` | the app's door to Nagi, and the quick judgment on add/rename |
+| `functions/api/memory/` | Shiomi's memory in D1 (`migrations/`) |
+| `agents/shiomi/` | Shiomi: Python + ADK, served over A2A on Cloud Run |
+| `a2ui.js`, `memory.js` | the question card renderer, and memory recording from the app |
 | `functions/__/` | passes Firebase's sign-in pages through our own domain |
-| `server/agents.js` | shared: sign-in check, Gemini, agent cards, the A2A server and client |
+| `server/agents.js`, `server/shiomi-client.js` | shared: sign-in check, Gemini, Nagi's A2A server; the A2A client for Shiomi |
 
 Layout checks: `sh tools/align-check.sh` measures the shared layout lines at three widths.
 
@@ -237,5 +241,8 @@ Layout checks: `sh tools/align-check.sh` measures the shared layout lines at thr
 - `docs/improve-set1.md`, `docs/improve-set2.md` — two review rounds (30 issues found, 15 fixed each)
 - `docs/ui-review/README.md` — the button and motion rules, with the 30 references they came from
 - `docs/shore-references.md` — references behind the land/water cut-away
-- `docs/nagi-agent-design.md` — the Nagi planning agent and its A2A handoff from Shiomi
-- `docs/reference/adk-agents/` — the same two agents on Google's ADK for Cloud Run (reference, not deployed)
+- `docs/nagi-agent-design.md` — the Nagi planning agent, Shiomi, and the decisions behind them
+- `docs/agent-upgrade-brief.md` — the brief for memory, ask-back, consultation and Cloud Run
+- `docs/story-facts.md` — what was built, with real traces and numbers
+- `docs/ui-review/askback-mock.html` — the approved mock of Shiomi's question card
+- `docs/reference/adk-agents/` — the earlier ADK prototype (both agents, not deployed)

@@ -25,7 +25,7 @@ export function buildReport(S, { lang = 'en', areaOf = () => '' } = {}) {
     tasks: open.map(t => {
       const c = St.compute(t, budget, areaOf(t));
       return {
-        id: t.id, title: t.title, section: St.secOf(t),
+        id: t.id, title: t.title, section: St.secOf(t), area: areaOf(t) || null,
         due: t.due || null, time: t.time || null,
         estMin: Math.round(c.hours * 60),
         slackDays: c.slack == null ? null : +c.slack.toFixed(2),
@@ -89,23 +89,45 @@ const clampMin = m => [25, 50].includes(+m) ? +m : 25;
 
 // ---------------------------------------------------------------- asking the agent
 // endpoint: /api/nagi (Cloudflare Pages Function), which checks sign-in and forwards to the Nagi agent over A2A.
-// Returns a checked plan, or the formula plan when anything goes wrong.
-export async function requestPlan(S, { lang, areaOf, token, endpoint = '/api/nagi', timeoutMs = 25000, enabled = true } = {}) {
-  const report = buildReport(S, { lang, areaOf });
-  const fallback = checkPlan(formulaPlan(report, { lang }), report, S) || formulaPlan(report, { lang });
-  if (!enabled || !token || !report.tasks.some(t => t.section === 'surface')) return { plan: fallback, report, why: 'off' };
+// Nagi may consult Shiomi; if Shiomi needs the user's answer, the reply is { ask } and the plan waits:
+// show the question, then call answerAsk(). Otherwise returns a checked plan, or the formula plan on any failure.
+async function post(endpoint, token, body, timeoutMs) {
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
     const r = await fetch(endpoint, {
       method: 'POST', signal: ctl.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ report })
+      body: JSON.stringify(body)
     });
-    if (!r.ok) return { plan: fallback, report, why: `http ${r.status}` };
-    const d = await r.json();
-    const plan = checkPlan({ ...d.plan, source: 'agent' }, report, S);
-    return plan ? { plan, report, why: 'agent' } : { plan: fallback, report, why: 'rejected' };
+    return r.ok ? { d: await r.json() } : { why: `http ${r.status}` };
   } catch (e) {
-    return { plan: fallback, report, why: e.name === 'AbortError' ? 'timeout' : 'error' };
+    return { why: e.name === 'AbortError' ? 'timeout' : 'error' };
   } finally { clearTimeout(timer); }
+}
+function settle(res, report, S, fallback) {
+  if (!res.d) return { plan: fallback, report, why: res.why };
+  const d = res.d;
+  if (d.ask && d.ask.nagiTask && Array.isArray(d.ask.a2ui)) return { plan: null, ask: d.ask, report, trace: d.trace, why: 'ask' };
+  const plan = checkPlan({ ...d.plan, source: 'agent' }, report, S);
+  return plan ? { plan, report, judged: judgedOf(d), trace: d.trace, why: 'agent' } : { plan: fallback, report, trace: d.trace, why: 'rejected' };
+}
+// Shiomi's new judgments from this plan's consultations: [{ id, impact, penalty, effort, dependency, must, confidence, reason }]
+function judgedOf(d) {
+  const ids = new Set(((d.trace && d.trace.calls) || []).flatMap(c => (c.judged || []).map(j => j.id)));
+  return ((d.report && d.report.tasks) || []).filter(t => ids.has(t.id)).map(t => ({ id: t.id, title: t.title, ...t.judgment }));
+}
+
+export async function requestPlan(S, { lang, areaOf, token, endpoint = '/api/nagi', timeoutMs = 75000, enabled = true } = {}) {
+  const report = buildReport(S, { lang, areaOf });
+  const fallback = checkPlan(formulaPlan(report, { lang }), report, S) || formulaPlan(report, { lang });
+  if (!enabled || !token || !report.tasks.some(t => t.section === 'surface')) return { plan: fallback, report, why: 'off' };
+  return settle(await post(endpoint, token, { report }, timeoutMs), report, S, fallback);
+}
+
+// The user answered Shiomi's question (answer: { for, deadline, date, note }) or let Shiomi guess ({ skipped: true }).
+export async function answerAsk(S, ask, answer, { lang, areaOf, token, endpoint = '/api/nagi', timeoutMs = 75000 } = {}) {
+  const report = buildReport(S, { lang, areaOf });
+  const fallback = checkPlan(formulaPlan(report, { lang }), report, S) || formulaPlan(report, { lang });
+  if (!token) return { plan: fallback, report, why: 'off' };
+  return settle(await post(endpoint, token, { resume: { taskId: ask.nagiTask, contextId: ask.contextId, answer } }, timeoutMs), report, S, fallback);
 }

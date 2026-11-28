@@ -2,7 +2,7 @@
 
 Status: built (2026-11-28). Phases 1 and 2 are live on Cloudflare Pages (moved from Vercel the same day); the calendar (phase 3) and A2UI cards (phase 4) are not built yet.
 
-**Where it runs:** all on Cloudflare Pages Functions (https://umi-lake.pages.dev). Shiomi and Nagi are separate A2A agents (`functions/api/agents/shiomi.js`, `functions/api/agents/nagi.js`), each with an agent card (GET) and a JSON-RPC endpoint (POST `message/send` with data parts). `functions/api/nagi.js` resolves each card and hands the report from Shiomi to Nagi over A2A. Every call carries the user's Firebase ID token, checked by each agent. The same pair built on Google's ADK for Cloud Run is kept as a reference in `docs/reference/adk-agents/`.
+**Where it runs:** Nagi on Cloudflare Pages Functions (https://umi-lake.pages.dev, `functions/api/agents/nagi.js`); Shiomi on Cloud Run (Python + Google ADK, `agents/shiomi/`). `/api/nagi` calls only Nagi over A2A; Nagi consults Shiomi over A2A 1.0 (official JS SDK) when it doubts a judgment. Every call carries the user's Firebase ID token, checked by each agent. Shiomi's memory is in Cloudflare D1, behind `/api/memory`. See §14 decisions 5–8.
 
 ## 1. Why
 
@@ -186,3 +186,7 @@ sequenceDiagram
 2. **Calendar**: later (phase 3).
 3. **A2A**: real A2A between two endpoints (each with its own agent card), even though both live in the same Pages project.
 4. **Suggestions**: tomorrow, lighter, later, dive — each only runs when the user taps it.
+5. **Hosting changed (2026-11-28, docs/agent-upgrade-brief.md)**: decision 1 is replaced. Shiomi now runs on **Cloud Run** (Python + Google ADK, service `umi-shiomi`, europe-west1, project gen-lang-client-0610821418, min instances 0 so the first call after a quiet spell waits a few seconds). Nagi stays on Cloudflare Pages (JavaScript). The two agents, in different languages and on different clouds, are connected only by A2A. Reason: so Shiomi is a real ADK agent with tools, memory and the right to ask back, rather than one Gemini call. The Gemini key for Shiomi lives in Secret Manager (`umi-gemini-key`), never in the repo.
+6. **Shiomi's memory**: Cloudflare D1 `umi-memory` (corrections, actuals, clarifications, pending_tasks), read and written through `/api/memory` with the user's Firebase token, one uid per row. Similar tasks are found by title keywords; embeddings (Vectorize + Workers AI) are a later option.
+7. **Ask-back**: when a title is too vague, Shiomi's long-running ADK tool `ask_user` puts the A2A task in input-required, with an A2UI v0.9 card (basic catalog) in the status message. The app draws it with its own parts. The answer goes back with the same taskId/contextId. Paused tasks (Shiomi's and Nagi's) are kept in D1 `pending_tasks`, so Cloud Run may scale to zero meanwhile.
+8. **Who calls Shiomi**: only Nagi, through its tool `ask_shiomi`, for tasks whose source is rule, whose confidence is low, or that look wrong; at most 2 consultations of up to 4 tasks per plan, one question to the user per plan. `/api/nagi` calls only Nagi. The trace lists each call (from, to, why, ms, state, Shiomi's tools).

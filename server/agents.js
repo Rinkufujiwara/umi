@@ -28,22 +28,24 @@ async function whoIs(idToken) {
   if (!r.ok) return null;
   const d = await r.json();
   const u = d.users && d.users[0];
-  return u && u.email && u.emailVerified !== false ? u.email.toLowerCase() : null;
+  return u && u.email && u.localId && u.emailVerified !== false ? { email: u.email.toLowerCase(), uid: u.localId } : null;
 }
-export async function checkCaller(request, env) {
+// Signed in and on the allow-list. needsGemini: false for routes that never call the model (/api/memory).
+export async function checkCaller(request, env, { needsGemini = true } = {}) {
   const allowed = (env.ALLOWED_EMAILS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
-  if (!allowed.length || !env.GEMINI_API_KEY) return { status: 503, error: "not configured" };
+  if (!allowed.length || (needsGemini && !env.GEMINI_API_KEY)) return { status: 503, error: "not configured" };
   const m = /^Bearer (.+)$/.exec(request.headers.get("Authorization") || "");
-  const email = m ? await whoIs(m[1]).catch(() => null) : null;
-  if (!email) return { status: 401, error: "sign in first" };
-  if (!allowed.includes(email)) return { status: 403, error: "not allowed" };
-  return { email, token: m[1] };
+  const who = m ? await whoIs(m[1]).catch(() => null) : null;
+  if (!who) return { status: 401, error: "sign in first" };
+  if (!allowed.includes(who.email)) return { status: 403, error: "not allowed" };
+  return { email: who.email, uid: who.uid, token: m[1] };
 }
 
 // ---------------------------------------------------------------- Gemini
 // Tries GEMINI_MODEL first, then the defaults; only an unknown model name (404) moves on to the next one.
-export async function gemini(env, body) {
-  const models = [env.GEMINI_MODEL, ...MODELS].filter((m, i, a) => m && a.indexOf(m) === i);
+// prefer: a model to try first for this caller (e.g. Nagi, which needs reliable tool use).
+export async function gemini(env, body, { prefer } = {}) {
+  const models = [prefer, env.GEMINI_MODEL, ...MODELS].filter((m, i, a) => m && a.indexOf(m) === i);
   let r = null, used = "";
   for (const model of models) {
     r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
@@ -79,7 +81,10 @@ function agentCard({ name, description, url, skill }) {
   };
 }
 
-// Serve one agent: GET → agent card (public); POST → JSON-RPC "message/send" with a data part → handler(data, env) → data part back.
+// Serve one agent: GET → agent card (public); POST → JSON-RPC "message/send" with a data part → handler → an A2A Task.
+// handler(data, env, { who, taskId, contextId }) returns { state: "completed", data } or
+// { state: "input-required", data, parts } (parts: extra parts for the status message, e.g. an A2UI card).
+// A reply to an input-required task comes back with the same taskId, and the handler resumes it.
 export function serveAgent(card, handler) {
   return async ({ request, env }) => {
     const url = new URL(request.url);
@@ -94,11 +99,21 @@ export function serveAgent(card, handler) {
     const msg = body.params && body.params.message;
     const data = msg && Array.isArray(msg.parts) ? (msg.parts.find((p) => p.kind === "data") || {}).data : null;
     if (!data) return fail(-32602, "expected a data part");
+    const taskId = msg.taskId || uid(), contextId = msg.contextId || uid();
     try {
-      const out = await handler(data, env);
+      const out = await handler(data, env, { who, taskId, contextId, resuming: !!msg.taskId });
+      const dataPart = { kind: "data", data: out.data };
+      const waiting = out.state === "input-required";
       return json({
         jsonrpc: "2.0", id,
-        result: { kind: "message", role: "agent", messageId: uid(), contextId: msg.contextId, parts: [{ kind: "data", data: out }] },
+        result: {
+          kind: "task", id: taskId, contextId,
+          status: {
+            state: waiting ? "input-required" : "completed", timestamp: new Date().toISOString(),
+            ...(waiting ? { message: { kind: "message", role: "agent", messageId: uid(), taskId, contextId, parts: [dataPart, ...(out.parts || [])] } } : {}),
+          },
+          ...(waiting ? {} : { artifacts: [{ artifactId: uid(), parts: [dataPart] }] }),
+        },
       });
     } catch (e) {
       return fail(-32603, String((e && e.message) || e).slice(0, 200));
@@ -106,8 +121,9 @@ export function serveAgent(card, handler) {
   };
 }
 
-// A2A client: resolve the agent card, then send one message with a data part and return the reply's data part.
-export async function sendA2A(agentUrl, data, token, contextId) {
+// A2A client for our own agents: resolve the agent card, send one data part (optionally continuing a task),
+// and return { state, data, parts, taskId, contextId, card }.
+export async function sendA2A(agentUrl, data, token, { contextId, taskId } = {}) {
   const auth = { Authorization: `Bearer ${token}` };
   const card = await (await fetch(agentUrl, { headers: auth })).json();
   // use the card's endpoint only when it is on the same origin as the card; otherwise the card's own address
@@ -117,12 +133,16 @@ export async function sendA2A(agentUrl, data, token, contextId) {
     method: "POST", headers: { "Content-Type": "application/json", ...auth },
     body: JSON.stringify({
       jsonrpc: "2.0", id: uid(), method: "message/send",
-      params: { message: { kind: "message", role: "user", messageId: uid(), contextId, parts: [{ kind: "data", data }] } },
+      params: { message: { kind: "message", role: "user", messageId: uid(), contextId, taskId, parts: [{ kind: "data", data }] } },
     }),
   });
   const d = await r.json().catch(() => ({}));
   if (d.error) throw new Error(`${card.name || agentUrl}: ${d.error.message}`);
-  const part = d.result && Array.isArray(d.result.parts) ? d.result.parts.find((p) => p.kind === "data") : null;
+  const t = d.result || {};
+  const parts = t.kind === "task"
+    ? (t.status && t.status.message ? t.status.message.parts : (t.artifacts || []).flatMap((a) => a.parts || []))
+    : t.parts || [];
+  const part = parts.find((p) => p.kind === "data");
   if (!part) throw new Error(`${card.name || agentUrl}: no data in reply`);
-  return { data: part.data, card };
+  return { state: (t.status && t.status.state) || "completed", data: part.data, parts, taskId: t.id, contextId: t.contextId, card };
 }

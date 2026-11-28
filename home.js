@@ -6,7 +6,9 @@ import { parseQuick } from './parse.js?v=50';
 import * as St from './store.js?v=50';
 import { Cloud, startCloud, Shiomi } from './cloud.js?v=50';
 import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=50';
-import { requestPlan } from './nagi.js?v=50';
+import { requestPlan, answerAsk } from './nagi.js?v=50';
+import { renderSurface } from './a2ui.js?v=50';
+import { watchEdit, noteDive } from './memory.js?v=50';
 applyStatic();
 gsap.registerPlugin(Observer);
 
@@ -52,9 +54,13 @@ let lastKeep = null;
 // every buoy stays afloat and the greeting line says Nagi is choosing. The formula's top three (by W) are used only
 // when the agent cannot answer: signed out, switched off in Settings, an error, or no answer within the time limit.
 // A plan is remembered (localStorage) until it expires, so reopening the page does not wait again.
-const PLAN_KEY = 'umi.nagiPlan';
+const PLAN_KEY = 'umi.nagiPlan', ASK_KEY = 'umi.nagiAsk';
 let nagiPlan = null, nagiBusy = false, nagiAsked = 0, nagiWaiting = false;
+// Shiomi's open question (Nagi consulted Shiomi, and Shiomi needs your answer): the plan waits for it
+let nagiAsk = null;
 try { const c = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); if (c && Date.parse(c.validUntil) > Date.now()) nagiPlan = c; } catch (_) {}
+try { const a = JSON.parse(localStorage.getItem(ASK_KEY) || 'null'); if (a && a.nagiTask && Date.now() - (a.at || 0) < 6 * 864e5) nagiAsk = a; } catch (_) {}
+const keepAsk = a => { nagiAsk = a; try { a ? localStorage.setItem(ASK_KEY, JSON.stringify(a)) : localStorage.removeItem(ASK_KEY); } catch (_) {} };
 const planValid = () => nagiPlan && Date.parse(nagiPlan.validUntil) > Date.now();
 function calmSet() {
   const today = live().filter(t => secOf(t) === 'surface');
@@ -62,28 +68,59 @@ function calmSet() {
     const ids = nagiPlan.keep.map(k => k.id).filter(id => today.some(t => t.id === id));
     if (ids.length === Math.min(3, nagiPlan.keep.length) && ids.length) return new Set(ids);
   }
-  if (nagiWaiting) return null;          // still choosing: nothing sinks yet
+  if (nagiWaiting || nagiAsk) return null; // still choosing, or waiting for your answer: nothing sinks yet
   return new Set(rank(today).slice(0, 3).map(t => t.id));
 }
 // wait (briefly) for the sign-in state, so a page that is still signing in is not sent to the formula
 let cloudSettled = false, cloudWaiters = [];
 const whenCloudSettled = () => cloudSettled ? Promise.resolve() : new Promise(r => { cloudWaiters.push(r); setTimeout(r, 5000); });
-async function refreshPlan(force) {
+async function refreshPlan(force, answer) {
   if (!S.settings.calm || nagiBusy) return;
-  if (!force && planValid() && Date.now() - nagiAsked < 10 * 60e3) return;
+  if (nagiAsk && !answer) return;          // the plan waits for your answer to Shiomi
+  if (!force && !answer && planValid() && Date.now() - nagiAsked < 10 * 60e3) return;
   nagiBusy = true; nagiAsked = Date.now();
+  const ask = nagiAsk;
+  if (answer) { keepAsk(null); nagiPlan = null; }
   if (!planValid()) { nagiWaiting = true; render(); }
   try {
     await whenCloudSettled();
     const token = Cloud.user ? await Cloud.token().catch(() => null) : null;
-    const { plan } = await requestPlan(S, { lang: getLang(), areaOf: areaName, token, enabled: S.settings.nagiAgent !== false });
+    const opts = { lang: getLang(), areaOf: areaName, token, enabled: S.settings.nagiAgent !== false };
+    const res = answer ? await answerAsk(S, ask, answer, opts) : await requestPlan(S, opts);
     if (!S.settings.calm) return;
+    if (res.ask) { keepAsk({ ...res.ask, at: Date.now() }); return; } // Shiomi asked: show the "?" and wait
+    takeJudgments(res.judged);
     const first = !planValid() || nagiWaiting;
-    nagiPlan = plan; nagiWaiting = false;
-    try { localStorage.setItem(PLAN_KEY, JSON.stringify(plan)); } catch (_) {}
+    nagiPlan = res.plan; nagiWaiting = false;
+    try { localStorage.setItem(PLAN_KEY, JSON.stringify(res.plan)); } catch (_) {}
     if (first) home.setCalm(true);         // the swell comes when the choice is made
-    render();
-  } finally { nagiBusy = false; nagiWaiting = false; }
+  } finally { nagiBusy = false; nagiWaiting = false; render(); }
+}
+// When Nagi consulted Shiomi, keep Shiomi's new judgments on the tasks (never over a value you set)
+function takeJudgments(list) {
+  let n = 0;
+  for (const j of list || []) {
+    const t = S.tasks.find(x => x.id === j.id); if (!t || t.title !== j.title) continue;
+    t.ai = { ...(t.ai && t.ai.title === t.title ? t.ai : {}), title: t.title, i: j.impact, p: j.penalty, e: j.effort, d: j.dependency, m: j.must, why: j.reason, c: j.confidence };
+    n++;
+  }
+  if (n) save();
+}
+// ---------------------------------------------------------------- Shiomi's question (an A2UI card in the task card's place)
+function openAsk(x, y) {
+  if (!nagiAsk) return;
+  const pop = $('pop');
+  popId = null; hlId = nagiAsk.taskId; home.setHover(nagiAsk.taskId);
+  pop.replaceChildren(renderSurface(nagiAsk.a2ui, { onAction: (name, ctx) => {
+    closePop();
+    refreshPlan(true, name === 'answer' && ctx.answer ? ctx.answer : { skipped: true });
+  } }));
+  const foot = document.createElement('div'); foot.className = 'a-foot'; foot.textContent = tr('ask.foot'); pop.appendChild(foot);
+  pop.classList.add('open', 'askcard');
+  const Z = UIZ(), w = pop.offsetWidth * Z, h = pop.offsetHeight * Z;
+  pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, x + 40)) / Z}px`; // beside the buoy, as in the mock
+  pop.style.top = `${Math.max(12, Math.min(innerHeight - h - 12, y - h / 2)) / Z}px`;
+  $('scrim').classList.add('open');
 }
 const nagiWhy = id => (S.settings.calm && nagiPlan ? nagiPlan.keep.find(k => k.id === id) : null);
 const nagiSuggest = id => (S.settings.calm && nagiPlan ? nagiPlan.suggest.filter(x => x.id === id) : []);
@@ -117,7 +154,8 @@ function render() {
   const hello = tr(hr < 4 ? 'hello.night' : hr < 11 ? 'hello.morning' : hr < 18 ? 'hello.day' : 'hello.night');
   const urg = L.filter(urgent).length, today = cnt('surface');
   $('hello').textContent = hello;
-  const nagiMsg = calm && nagiWaiting && !planValid() ? `<span class="nagimsg thinking">${esc(tr('nagi.thinking'))}</span>`
+  const nagiMsg = calm && nagiAsk ? `<button class="nagimsg thinking linkish" data-ask>${esc(tr('nagi.waitAnswer'))}</button>`
+    : calm && nagiWaiting && !planValid() ? `<span class="nagimsg thinking">${esc(tr('nagi.thinking'))}</span>`
     : calm && nagiPlan && nagiPlan.message ? `<span class="nagimsg">${esc(nagiPlan.message)}</span>` : '';
   $('summary').innerHTML = nagiMsg || `${esc(mdw(d))}${urg ? `　<button class="late linkish" data-go="map" title="${esc(tr('urgent.title'))}">${esc(tr('urgent.n', { n: urg }))}</button>` : ''}`;
   // counts live in the Overview (view from the sky)
@@ -191,6 +229,8 @@ home.onFrame((pts, { inside }) => {
   if (fresh) order.sort((a, b) => (b.id === fresh) - (a.id === fresh)); // a just-added task claims its spot first
   const always = new Set(order.slice(0, SHOW).map(p => p.id));
   if (fresh) always.add(fresh);
+  const asking = S.settings.calm && nagiAsk ? nagiAsk.taskId : null;
+  if (asking) always.add(asking);
   if (station !== 'map' && focusId) always.add(focusId);
   // places a tag must not cover: other buoys, the top panels, the left column
   const blocks = [];
@@ -204,10 +244,10 @@ home.onFrame((pts, { inside }) => {
     seen.add(p.id);
     let el = tagEls.get(p.id);
     if (!el) { el = document.createElement('div'); el.className = 'tag'; el.dataset.open = p.id; $('tags').appendChild(el); tagEls.set(p.id, el); }
-    const html = `<i style="background:${KIND_COLOR[kindOf(t)]}"></i>${esc(t.title)}`; // Shiomi's "must" shows in the color too
+    const html = `<i style="background:${KIND_COLOR[kindOf(t)]}"></i>${esc(t.title)}${p.id === asking ? ` · <b>${esc(tr('ask.tag'))}</b>` : ''}`; // Shiomi's "must" shows in the color too
     if (el._h !== html) { el.innerHTML = html; el._h = html; el._w = 0; }
     if (el.dataset.u !== tr('tag.urgent')) el.dataset.u = tr('tag.urgent');
-    el.className = 'tag' + (hlId === p.id ? ' hl' : '') + (sharkSet.has(t.id) ? ' urgent' : '') + (p.id === fresh ? ' fresh' : '') + (show ? '' : ' off');
+    el.className = 'tag' + (hlId === p.id ? ' hl' : '') + (sharkSet.has(t.id) ? ' urgent' : '') + (p.id === fresh || p.id === asking ? ' fresh' : '') + (p.id === asking ? ' asking' : '') + (show ? '' : ' off');
     if (!show) continue;
     if (!el._w) { el._w = el.offsetWidth || 160; el._hh = el.offsetHeight || 24; }
     const Z = UIZ(), w = el._w * Z, h = el._hh * Z, gap = 10; // tags are scaled with the UI: measure in screen px
@@ -227,6 +267,10 @@ home.onFrame((pts, { inside }) => {
     const cx = Math.max(L, Math.min(L + w, p.x)), cy = Math.max(T, Math.min(T + h, p.y));
     if (Math.hypot(cx - p.x, cy - p.y) > 14) lines.push(`M${p.x} ${p.y + 4}L${cx} ${cy}`);
   }
+  // the small "?" that floats with the buoy Shiomi asks about
+  const qp = asking && inside < 0.3 ? pts.find(p => p.id === asking) : null, q = $('askQ');
+  if (q) q.classList.toggle('on', !!qp); // (a cached older index.html has no #askQ: never let that stop the frame loop)
+  if (q && qp) { const Z = UIZ(); q.style.left = `${(qp.x + 6) / Z}px`; q.style.top = `${(qp.y - 30) / Z}px`; }
   $('tagLines').setAttribute('d', lines.join(''));
   $('tagLines').style.opacity = inside < 0.3 ? '1' : '0';
   for (const [id, el] of tagEls) if (!seen.has(id)) { el.remove(); tagEls.delete(id); }
@@ -288,7 +332,8 @@ function postpone(id, days) {
 function lighter(id) {
   const t = S.tasks.find(x => x.id === id); if (!t) return;
   const prev = t.w ? { ...t.w } : null, lvl = Math.max(1, levelOf(t) - 1);
-  t.w = { ...(t.w || {}), ...St.WEIGHT_IP[lvl] }; t.touchedAt = Date.now();
+  const noted = watchEdit(t, areaName(t));
+  t.w = { ...(t.w || {}), ...St.WEIGHT_IP[lvl] }; t.touchedAt = Date.now(); noted();
   delete t.sample; save(); closePop(); render();
   toast(tr('toast.lighter', { t: t.title, w: St.WEIGHT[lvl] }), () => { t.w = prev; });
 }
@@ -305,6 +350,8 @@ function raise(id) {
 // Pressing a buoy opens a small card
 let popId = null;
 function openPop(id, x, y) {
+  if (S.settings.calm && nagiAsk && id === nagiAsk.taskId) { openAsk(x, y); return; }
+  $('pop').classList.remove('askcard');
   const t = S.tasks.find(x => x.id === id); if (!t || t.done) return;
   popId = id; hlId = id; home.setHover(id);
   const dl = dueLabel(t), sec = secOf(t), a = S.areas.find(a => a.id === t.area);
@@ -350,7 +397,11 @@ document.addEventListener('click', e => {
     return;
   }
   const wt = e.target.closest('[data-weight]');
-  if (wt && popId) { const t = S.tasks.find(x => x.id === popId); t.w = { ...(t.w || {}), ...St.WEIGHT_IP[+wt.dataset.weight] }; t.touchedAt = Date.now(); delete t.sample; save(); const id = popId, r = $('pop').getBoundingClientRect(); render(); openPop(id, r.left + r.width / 2, r.bottom + 24); return; }
+  if (wt && popId) { const t = S.tasks.find(x => x.id === popId), noted = watchEdit(t, areaName(t)); t.w = { ...(t.w || {}), ...St.WEIGHT_IP[+wt.dataset.weight] }; t.touchedAt = Date.now(); noted(); delete t.sample; save(); const id = popId, r = $('pop').getBoundingClientRect(); render(); openPop(id, r.left + r.width / 2, r.bottom + 24); return; }
+  if (e.target.closest('[data-ask]')) {
+    const el = (nagiAsk && tagEls.get(nagiAsk.taskId)) || $('askQ'), r = el.getBoundingClientRect();
+    openAsk(r.right, r.top + r.height / 2); return;
+  }
   const op = e.target.closest('[data-open]');
   if (op) {
     const tg = tagEls.get(op.dataset.open), tag = tg && !tg.classList.contains("off") && tg.offsetParent ? tg : null; // a hidden tag has no position: use the card instead
@@ -401,7 +452,8 @@ function dropBuoy() {
   const prev = { w: t.w ? { ...t.w } : undefined, due: t.due, time: t.time, pin: t.pin };
   const changed = [];
   if (Math.abs(uv.u - before.u) > 0.04) {
-    t.w = { ...(t.w || {}), ...St.weightFromU(t, uv.u, S.settings.budget, areaName(t)) };
+    const noted = watchEdit(t, areaName(t));
+    t.w = { ...(t.w || {}), ...St.weightFromU(t, uv.u, S.settings.budget, areaName(t)) }; noted();
     changed.push(tr('pop.weightIs', { w: St.WEIGHT[levelOf(t)] }));
   }
   if (Math.abs(uv.v - before.v) > 0.03) {
@@ -435,7 +487,7 @@ function frameHome(dur, delay = 0) {
 }
 function toggleCalm() {
   S.settings.calm = !S.settings.calm;
-  if (!S.settings.calm) { nagiPlan = null; nagiWaiting = false; try { localStorage.removeItem(PLAN_KEY); } catch (_) {} home.setCalm(false); }
+  if (!S.settings.calm) { nagiPlan = null; nagiWaiting = false; keepAsk(null); try { localStorage.removeItem(PLAN_KEY); } catch (_) {} home.setCalm(false); }
   save(); render();
   if (S.settings.calm) refreshPlan(true); // the swell, the sinking and the camera move happen once Nagi has chosen
   if (station === 'home' && !S.settings.calm) frameHome(2.2, 300);
@@ -777,6 +829,7 @@ function surface() {
   if (t && el > 60e3) { // keep the total in diveMin and only the latest 50 records
     t.diveMin = (t.diveMin || (t.dives || []).reduce((s, d) => s + d.min, 0)) + min;
     t.dives = [...(t.dives || []), { at: dv.start, min }].slice(-50); save();
+    noteDive(t, min, S.settings.budget, areaName(t));
   }
   plop();
   notify(tr('dive.notifyUp'), tr('dive.notifyUpBody', { m: min, r: Math.max(1, Math.round(min / 5)) }));
