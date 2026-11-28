@@ -117,10 +117,62 @@ function judgedOf(d) {
   return ((d.report && d.report.tasks) || []).filter(t => ids.has(t.id)).map(t => ({ id: t.id, title: t.title, ...t.judgment }));
 }
 
-export async function requestPlan(S, { lang, areaOf, token, endpoint = '/api/nagi', timeoutMs = 75000, enabled = true } = {}) {
+// ---------------------------------------------------------------- not asking again for what has not changed
+// A plan remembers what the tasks looked like when it was made (its basis). Next time, only what changed is weighed:
+//   nothing changed, or only tasks Nagi had not kept were removed  → the same three, no call
+//   kept tasks were removed (done or deleted)                       → the others stay; Nagi fills only the empty
+//                                                                     places, from the tasks it did not keep
+//   tasks were added or changed                                     → Nagi weighs only those against the kept three
+// A new day, a new day budget, or a plan that was not Nagi's own means a full plan.
+const fp = t => { const j = t.judgment || {}; return [t.title, t.section, t.due, t.time, t.estMin, j.impact, j.penalty, j.effort, j.dependency, j.must].join('|'); };
+export function basisOf(report) {
+  return { day: St.todayStr(), budget: report.dayBudgetMin, tasks: Object.fromEntries(report.tasks.map(t => [t.id, fp(t)])) };
+}
+export function scopeOf(last, report) {
+  const b = last && last.basis;
+  if (!b || last.source !== 'agent' || b.day !== St.todayStr() || b.budget !== report.dayBudgetMin) return { mode: 'full' };
+  const surf = report.tasks.filter(t => t.section === 'surface'), ids = new Set(surf.map(t => t.id));
+  const fresh = surf.filter(t => b.tasks[t.id] !== fp(t)).map(t => t.id);
+  const kept = last.keep.map(k => k.id).filter(id => ids.has(id) && !fresh.includes(id));
+  const others = surf.map(t => t.id).filter(id => !fresh.includes(id) && !kept.includes(id));
+  const today = St.todayStr();
+  if (surf.some(t => t.judgment && t.judgment.must && t.due && t.due < today && !kept.includes(t.id) && !fresh.includes(t.id))) return { mode: 'full' };
+  let fixed, pool;
+  if (!fresh.length) { fixed = kept; pool = kept.length < 3 ? others : []; }            // only removals
+  else if (kept.length === 3) { fixed = []; pool = [...kept, ...fresh]; }              // new or changed vs the kept three
+  else { fixed = []; pool = [...kept, ...fresh, ...others]; }
+  if (fixed.length + pool.length <= 3) return { mode: 'local', fixed, pool, removed: last.keep.length - kept.length }; // everything fits: no choice to make
+  if (!fixed.length && pool.length === surf.length) return { mode: 'full' };
+  return { mode: 'partial', fixed, pool };
+}
+
+export async function requestPlan(S, { lang, areaOf, token, endpoint = '/api/nagi', timeoutMs = 75000, enabled = true, last = null } = {}) {
   const report = buildReport(S, { lang, areaOf });
   const fallback = checkPlan(formulaPlan(report, { lang }), report, S) || formulaPlan(report, { lang });
   if (!enabled || !token || !report.tasks.some(t => t.section === 'surface')) return { plan: fallback, report, why: 'off' };
+  const sc = scopeOf(last, report);
+  if (sc.mode !== 'full') {
+    const byId = new Map(report.tasks.map(t => [t.id, t])), whys = new Map(last.keep.map(k => [k.id, k.why]));
+    const kept = id => ({ id, why: whys.get(id) || whyOf(byId.get(id), lang) });
+    const fixed = sc.fixed.map(kept);
+    if (sc.mode === 'local') {
+      const was = sc.pool.filter(id => whys.has(id)), rest = sc.pool.filter(id => !whys.has(id)).sort((a, b) => byId.get(b).order - byId.get(a).order);
+      const plan = checkPlan({ ...last, keep: [...fixed, ...[...was, ...rest].map(kept)], validUntil: new Date(Date.now() + 3 * 3600e3).toISOString() }, report, S);
+      if (plan) return { plan, report, why: 'reused' };
+    } else {
+      const only = new Set([...sc.fixed, ...sc.pool]);
+      const part = { ...report, tasks: report.tasks.filter(t => only.has(t.id)), fixed: sc.fixed, slots: 3 - sc.fixed.length };
+      const res = await post(endpoint, token, { report: part }, timeoutMs);
+      if (res.d && res.d.plan && Array.isArray(res.d.plan.keep)) {
+        const p = res.d.plan;
+        p.keep = [...fixed, ...p.keep.filter(k => k && !sc.fixed.includes(k.id))];
+        p.suggest = [...(Array.isArray(p.suggest) ? p.suggest : []), ...(last.suggest || []).filter(s => sc.fixed.includes(s.id))];
+        if (!p.message) p.message = last.message;
+      }
+      const out = settle(res, report, S, fallback);
+      return out.why === 'agent' ? { ...out, why: 'partial' } : out;
+    }
+  }
   return settle(await post(endpoint, token, { report }, timeoutMs), report, S, fallback);
 }
 

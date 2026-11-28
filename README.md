@@ -190,6 +190,12 @@ the server answers with an error, there is no answer within 75 seconds, or the p
 A formula plan is labelled "Nagi (formula)" on the cards. While Shiomi's question is open, nothing sinks.
 If you press "Let Shiomi guess", Shiomi judges with a low confidence and nothing is recorded.
 
+Nagi is not asked again about what has not changed. Each plan remembers what the tasks looked like when it was made.
+When Nagi mode is turned on again (or the plan is refreshed): nothing changed, or only tasks Nagi had not kept were
+removed → the same three, no call. A kept task was finished or deleted → the other kept tasks stay, and Nagi is asked
+only to fill the empty places from the tasks it did not keep (no call at all if what is left fits). Tasks were added
+or changed → Nagi weighs only those against the kept three. A new day or a new day budget means a full plan.
+
 ### Not built yet
 
 - Calendar access for `get_free_time` (read-only Google Calendar).

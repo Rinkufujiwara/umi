@@ -6,7 +6,7 @@ import { parseQuick } from './parse.js?v=50';
 import * as St from './store.js?v=50';
 import { Cloud, startCloud, Shiomi } from './cloud.js?v=50';
 import { t as tr, md, mdw, getLang, setLang, onLang, applyStatic, LANGS } from './i18n.js?v=50';
-import { requestPlan, answerAsk } from './nagi.js?v=50';
+import { requestPlan, answerAsk, buildReport, basisOf } from './nagi.js?v=50';
 import { renderSurface } from './a2ui.js?v=50';
 import { watchEdit, noteDive } from './memory.js?v=50';
 applyStatic();
@@ -58,7 +58,9 @@ const PLAN_KEY = 'umi.nagiPlan', ASK_KEY = 'umi.nagiAsk';
 let nagiPlan = null, nagiBusy = false, nagiAsked = 0, nagiWaiting = false;
 // Shiomi's open question (Nagi consulted Shiomi, and Shiomi needs your answer): the plan waits for it
 let nagiAsk = null;
-try { const c = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); if (c && Date.parse(c.validUntil) > Date.now()) nagiPlan = c; } catch (_) {}
+// lastPlan: the latest plan, kept after Nagi mode is turned off, so turning it on again weighs only what changed
+let lastPlan = null;
+try { const c = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); if (c) { lastPlan = c; if (S.settings.calm && Date.parse(c.validUntil) > Date.now()) nagiPlan = c; } } catch (_) {}
 try { const a = JSON.parse(localStorage.getItem(ASK_KEY) || 'null'); if (a && a.nagiTask && Date.now() - (a.at || 0) < 6 * 864e5) nagiAsk = a; } catch (_) {}
 const keepAsk = a => { nagiAsk = a; try { a ? localStorage.setItem(ASK_KEY, JSON.stringify(a)) : localStorage.removeItem(ASK_KEY); } catch (_) {} };
 const planValid = () => nagiPlan && Date.parse(nagiPlan.validUntil) > Date.now();
@@ -77,7 +79,9 @@ const whenCloudSettled = () => cloudSettled ? Promise.resolve() : new Promise(r 
 async function refreshPlan(force, answer) {
   if (!S.settings.calm || nagiBusy) return;
   if (nagiAsk && !answer) return;          // the plan waits for your answer to Shiomi
-  if (!force && !answer && planValid() && Date.now() - nagiAsked < 10 * 60e3) return;
+  // a kept task was finished or deleted: fill its place now (cheap: Nagi weighs only the tasks it did not keep)
+  const gone = planValid() && nagiPlan.keep.some(k => !live().some(t => t.id === k.id && secOf(t) === 'surface'));
+  if (!force && !answer && !gone && planValid() && Date.now() - nagiAsked < 10 * 60e3) return;
   nagiBusy = true; nagiAsked = Date.now();
   const ask = nagiAsk;
   if (answer) { keepAsk(null); nagiPlan = null; }
@@ -86,13 +90,13 @@ async function refreshPlan(force, answer) {
     await whenCloudSettled();
     const token = Cloud.user ? await Cloud.token().catch(() => null) : null;
     const opts = { lang: getLang(), areaOf: areaName, token, enabled: S.settings.nagiAgent !== false };
-    const res = answer ? await answerAsk(S, ask, answer, opts) : await requestPlan(S, opts);
+    const res = answer ? await answerAsk(S, ask, answer, opts) : await requestPlan(S, { ...opts, last: lastPlan });
     if (!S.settings.calm) return;
     if (res.ask) { keepAsk({ ...res.ask, at: Date.now() }); return; } // Shiomi asked: show the "?" and wait
     takeJudgments(res.judged);
     const first = !planValid() || nagiWaiting;
-    nagiPlan = res.plan; nagiWaiting = false;
-    try { localStorage.setItem(PLAN_KEY, JSON.stringify(res.plan)); } catch (_) {}
+    nagiPlan = { ...res.plan, how: res.why, basis: basisOf(buildReport(S, opts)) }; nagiWaiting = false; lastPlan = nagiPlan;
+    try { localStorage.setItem(PLAN_KEY, JSON.stringify(nagiPlan)); } catch (_) {}
     if (first) home.setCalm(true);         // the swell comes when the choice is made
   } finally { nagiBusy = false; nagiWaiting = false; render(); }
 }
@@ -487,7 +491,7 @@ function frameHome(dur, delay = 0) {
 }
 function toggleCalm() {
   S.settings.calm = !S.settings.calm;
-  if (!S.settings.calm) { nagiPlan = null; nagiWaiting = false; keepAsk(null); try { localStorage.removeItem(PLAN_KEY); } catch (_) {} home.setCalm(false); }
+  if (!S.settings.calm) { nagiPlan = null; nagiWaiting = false; keepAsk(null); home.setCalm(false); } // lastPlan stays for next time
   save(); render();
   if (S.settings.calm) refreshPlan(true); // the swell, the sinking and the camera move happen once Nagi has chosen
   if (station === 'home' && !S.settings.calm) frameHome(2.2, 300);
@@ -574,7 +578,7 @@ $('envMenu').addEventListener('click', e => {
   if (s) { S.settings.season = s.dataset.season; save(); renderEnv(); }
   if (w) { S.settings.weather = w.dataset.weather; save(); Env.setWeatherMode(w.dataset.weather); }
   if (so) { S.settings.sound = !S.settings.sound; save(); renderEnv(); }
-  if (e.target.closest('[data-agent]')) { S.settings.nagiAgent = S.settings.nagiAgent === false; nagiPlan = null; save(); renderEnv(); refreshPlan(true); }
+  if (e.target.closest('[data-agent]')) { S.settings.nagiAgent = S.settings.nagiAgent === false; nagiPlan = null; lastPlan = null; save(); renderEnv(); refreshPlan(true); }
 });
 
 // ---------------------------------------------------------------- camera moves (wheel, swipe, arrow keys)

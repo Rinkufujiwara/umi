@@ -36,7 +36,11 @@ Plan what to keep afloat now:
    - Prefer little slack, must, high penalty, someone waiting; fit the minutes left.
 4. Optionally suggest for other tasks: "tomorrow", "lighter" (lower its weight), "later" (+3 days), or "dive"
    (a 25 or 50 minute focus session, only for a kept task). Suggest little; the user decides.
-5. Write one calm sentence for the day as "message". No pressure, no exclamation marks.
+5. Write one calm sentence for the day as "message".
+If the report has "fixed" (task ids) and "slots" (a number), this is a refill: the fixed tasks are already kept and stay.
+Do not consult about them or suggest for them; choose only "slots" more tasks from the other surface tasks.
+If "fixed" is empty and "slots" is 3, the report holds only the tasks that matter: the ones kept last time and the
+new or changed ones; choose three of them. No pressure, no exclamation marks.
 Write every "why" and the message in the report's "lang" ("en" English, "ja" Japanese), one short sentence each.
 
 When you are done, answer with JSON only:
@@ -102,7 +106,8 @@ const doubtful = (t) => {
 async function consult(st, args, ctx, env) {
   if (st.consults >= MAX_CONSULTS) return { result: { error: `limit of ${MAX_CONSULTS} consultations reached; plan with what you have` } };
   const ids = [...new Set(Array.isArray(args.task_ids) ? args.task_ids : [])];
-  const tasks = st.report.tasks.filter((t) => ids.includes(t.id) && doubtful(t)).slice(0, MAX_PER_CONSULT);
+  const fixed = new Set(st.report.fixed || []); // a refill: the tasks already kept are not judged again
+  const tasks = st.report.tasks.filter((t) => ids.includes(t.id) && !fixed.has(t.id) && doubtful(t)).slice(0, MAX_PER_CONSULT);
   if (!tasks.length) return { result: { error: "none of these tasks can be judged again (unknown ids, or the user set every value)" } };
   st.consults++;
   const why = String(args.why || "").slice(0, 200), askAllowed = !st.asked, t0 = Date.now();
@@ -213,10 +218,11 @@ async function handle(data, env, ctx) {
     const report = data.report;
     if (!report || !Array.isArray(report.tasks)) throw new Error("expected { report: ShiomiReport }");
     report.tasks = report.tasks.slice(0, 40);
+    if (report.fixed != null) { report.fixed = (Array.isArray(report.fixed) ? report.fixed : []).map(String).slice(0, 3); report.slots = Math.max(1, Math.min(3, 3 - report.fixed.length)); }
     st = {
       report, round: 0, consults: 0, asked: false, started: Date.now(),
       contents: [{ role: "user", parts: [{ text: JSON.stringify(report) }] }],
-      trace: { engine: "cloudflare-a2a", calls: [{ from: "app", to: "nagi", why: "plan Nagi mode" }], tools: [] },
+      trace: { engine: "cloudflare-a2a", calls: [{ from: "app", to: "nagi", why: report.fixed ? (report.fixed.length ? `fill ${report.slots} place(s); ${report.fixed.length} kept` : "weigh new or changed tasks against the kept ones") : "plan Nagi mode", tasks: report.tasks.length }], tools: [] },
     };
   }
   const out = await run(st, ctx, env);
