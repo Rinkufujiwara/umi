@@ -64,7 +64,7 @@ const en = {
   // account / Shiomi
   'acct.signin': 'Sign in with Google', 'acct.signout': 'Sign out', 'acct.signedIn': 'Signed in',
   'shiomi.off': 'Sign in and Shiomi will weigh your tasks', 'shiomi.idle': 'Shiomi: up to date', 'shiomi.busy': 'Shiomi: thinking…',
-  'shiomi.unset': 'Shiomi: API key not set on Vercel', 'shiomi.denied': 'Shiomi: this account is not allowed', 'shiomi.error': 'Shiomi: cannot connect (will retry)',
+  'shiomi.unset': 'Shiomi: API key not set on the server', 'shiomi.denied': 'Shiomi: this account is not allowed', 'shiomi.error': 'Shiomi: cannot connect (will retry)',
   'cloud.signinFail': 'Could not sign in. Please try again.', 'cloud.loadFail': 'Could not load your account data',
   'cloud.uploaded': "Saved this device's data to your account", 'cloud.saveFail': 'Could not save to your account',
   // dive
@@ -145,7 +145,7 @@ const ja = {
   'env.statusManual': '湖：{k}（{s}）・手動', 'env.statusAuto': '忙しさ {p}%：{k}（{s}）', 'env.small': '{season}・{k}（{s}）',
   'acct.signin': 'Google でログイン', 'acct.signout': 'ログアウト', 'acct.signedIn': 'ログイン中',
   'shiomi.off': 'ログインすると潮見が重さを付けます', 'shiomi.idle': '潮見：最新', 'shiomi.busy': '潮見：考えています…',
-  'shiomi.unset': '潮見：Vercel に API キーが未設定', 'shiomi.denied': '潮見：このアカウントは許可されていません', 'shiomi.error': '潮見：つながりません（あとで再試行）',
+  'shiomi.unset': '潮見：サーバーに API キーが未設定', 'shiomi.denied': '潮見：このアカウントは許可されていません', 'shiomi.error': '潮見：つながりません（あとで再試行）',
   'cloud.signinFail': 'ログインできませんでした。もう一度試してください。', 'cloud.loadFail': 'アカウントのデータを読み込めませんでした',
   'cloud.uploaded': 'この端末のデータをアカウントに保存しました', 'cloud.saveFail': 'アカウントに保存できませんでした',
   'dive': 'ダイブ', 'dive.sub': 'ひとつのタスクに潜る', 'dive.target': '潜る先', 'dive.time': '時間', 'dive.open': '決めない',

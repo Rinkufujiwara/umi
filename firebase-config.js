@@ -8,5 +8,5 @@ window.FIREBASE_CONFIG = {
   storageBucket: "spanish-shelf.firebasestorage.app",
   messagingSenderId: "764012002336",
   appId: "1:764012002336:web:3f4fa7d2f0b2da0209d045",
-  siteHosts: ["umi-lake.pages.dev", "umi-ten.vercel.app"],
+  siteHosts: ["umi-lake.pages.dev"],
 };

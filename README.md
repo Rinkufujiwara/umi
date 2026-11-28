@@ -228,7 +228,6 @@ Pages settings (never in the repo): `GEMINI_API_KEY` (secret), `ALLOWED_EMAILS`,
 | `functions/api/nagi.js`, `functions/api/weigh.js` | the orchestrator, and Shiomi's quick judgment |
 | `functions/__/` | passes Firebase's sign-in pages through our own domain |
 | `server/agents.js` | shared: sign-in check, Gemini, agent cards, the A2A server and client |
-| `api/`, `vercel.json` | the earlier Vercel deployment (umi-ten.vercel.app), kept until it is retired |
 
 Layout checks: `sh tools/align-check.sh` measures the shared layout lines at three widths.
 

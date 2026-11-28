@@ -76,7 +76,7 @@ export async function startCloud(hooks) {
 
 // ---------------------------------------------------------------- Shiomi (AI): asks for I/P/E/D
 export const Shiomi = {
-  state: 'off',   // off (signed out) / idle / busy / unset (not configured on Vercel) / denied (account not allowed) / error
+  state: 'off',   // off (signed out) / idle / busy / unset (not configured on the server) / denied (account not allowed) / error
   timer: 0, backoff: 30e3,
   kick(hooks, delay = 2500) {
     clearTimeout(this.timer);

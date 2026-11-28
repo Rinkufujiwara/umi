@@ -88,7 +88,7 @@ const clip = (s, n) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().sl
 const clampMin = m => [25, 50].includes(+m) ? +m : 25;
 
 // ---------------------------------------------------------------- asking the agent
-// endpoint: /api/nagi (Vercel), which checks sign-in and forwards to the Nagi agent over A2A.
+// endpoint: /api/nagi (Cloudflare Pages Function), which checks sign-in and forwards to the Nagi agent over A2A.
 // Returns a checked plan, or the formula plan when anything goes wrong.
 export async function requestPlan(S, { lang, areaOf, token, endpoint = '/api/nagi', timeoutMs = 25000, enabled = true } = {}) {
   const report = buildReport(S, { lang, areaOf });
