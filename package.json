@@ -1,0 +1,9 @@
+{
+  "name": "umi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "deploy": "node tools/build.mjs && npx -y wrangler@4.169.0 pages deploy dist --project-name umi-lake --branch main --commit-dirty=true"
+  }
+}

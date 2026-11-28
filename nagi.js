@@ -74,7 +74,7 @@ export function checkPlan(plan, report, S) {
   const overdue = S.tasks.filter(t => !t.done && t.kind === 'must' && t.due && t.due < St.todayStr() && open.has(t.id));
   for (const t of overdue) if (!keep.some(k => k.id === t.id)) return null;
   const suggest = (Array.isArray(plan.suggest) ? plan.suggest : [])
-    .filter(s => s && open.has(s.id) && ACTIONS.has(s.action) && (s.action === 'dive' || !seen.has(s.id))) // only kept tasks may get a dive
+    .filter(s => s && open.has(s.id) && ACTIONS.has(s.action) && (s.action === 'dive' ? seen.has(s.id) : !seen.has(s.id))) // a dive only for a kept task; the other actions only for the rest
     .slice(0, 4)
     .map(s => ({ id: s.id, action: s.action, minutes: s.action === 'dive' ? clampMin(s.minutes) : undefined, why: clip(s.why, MAX_WHY) }));
   const until = Date.parse(plan.validUntil);

@@ -27,8 +27,8 @@ export async function startCloud(hooks) {
     import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`),
     import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`)
   ]);
-  // In production the sign-in page is served from our own domain (vercel.json proxies /__/auth); elsewhere from Firebase's domain
-  const onSite = location.hostname === cfg.siteHost;
+  // On the live sites the sign-in page is served from our own domain (functions/__/auth proxies it); elsewhere from Firebase's domain
+  const onSite = (cfg.siteHosts || [cfg.siteHost]).includes(location.hostname);
   const app = initializeApp({ ...cfg, authDomain: onSite ? location.host : cfg.authDomain });
   const auth = A.getAuth(app), db = F.getFirestore(app);
   Object.assign(Cloud, { api: F, auth, ready: true });

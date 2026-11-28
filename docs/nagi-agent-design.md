@@ -1,8 +1,8 @@
 # Nagi agent — design
 
-Status: built (2026-11-28). Phases 1 and 2 are live on Vercel; the calendar (phase 3) and A2UI cards (phase 4) are not built yet.
+Status: built (2026-11-28). Phases 1 and 2 are live on Cloudflare Pages (moved from Vercel the same day); the calendar (phase 3) and A2UI cards (phase 4) are not built yet.
 
-**Where it runs:** all on Vercel. Shiomi and Nagi are separate A2A agents (`api/agents/shiomi.js`, `api/agents/nagi.js`), each with an agent card (GET) and a JSON-RPC endpoint (POST `message/send` with data parts). `api/nagi.js` resolves each card and hands the report from Shiomi to Nagi over A2A. Every call carries the user's Firebase ID token, checked by each agent. The same pair built on Google's ADK for Cloud Run is kept as a reference in `docs/reference/adk-agents/`.
+**Where it runs:** all on Cloudflare Pages Functions (https://umi-lake.pages.dev). Shiomi and Nagi are separate A2A agents (`functions/api/agents/shiomi.js`, `functions/api/agents/nagi.js`), each with an agent card (GET) and a JSON-RPC endpoint (POST `message/send` with data parts). `functions/api/nagi.js` resolves each card and hands the report from Shiomi to Nagi over A2A. Every call carries the user's Firebase ID token, checked by each agent. The same pair built on Google's ADK for Cloud Run is kept as a reference in `docs/reference/adk-agents/`.
 
 ## 1. Why
 
@@ -20,7 +20,7 @@ Each agent stays small and testable, the handoff between them is an explicit con
 
 | Part | Where | What it does |
 |---|---|---|
-| Shiomi | `api/weigh.js` (Vercel function) → Gemini 2.5 Flash-Lite | For up to 12 tasks: impact, penalty, effort, dependency (1–10), must (true/false), two short reasons |
+| Shiomi | `functions/api/weigh.js` (Pages Function) → Gemini 2.5 Flash-Lite | For up to 12 tasks: impact, penalty, effort, dependency (1–10), must (true/false), two short reasons |
 | Must / own | `store.js` `values()` | What **you** set (typed "must"/"own", or chosen in the table) > Shiomi's `must` > fallback rule (penalty ≥ 6) |
 | Order W | `store.js` `compute()` | `W = V / hours^0.6 × U(slack)`; urgency rises steeply as slack runs out |
 | Nagi mode | `home.js` `calmSet()` | Top 3 of today's tasks by W; the rest sink out of view |
@@ -142,14 +142,14 @@ sequenceDiagram
 |---|---|---|
 | Agent ↔ agent | **A2A** (Agent2Agent, JSON-RPC binding): each agent publishes an agent card; the report goes over in `message/send` as a data part; the reply message carries the plan as a data part | A standard, inspectable handoff instead of a hidden function call; either agent can be swapped or tested alone |
 | Agent ↔ tools | **MCP** for the calendar; plain functions for app data | Calendar access is a separate, permissioned service; app data is already in the request |
-| Agent framework | Live: Gemini function calling inside Vercel functions. Reference: **ADK** (Python) in `docs/reference/adk-agents/` | Vercel keeps everything in one place with the keys already set; ADK is the path if the agents move to Cloud Run |
+| Agent framework | Live: Gemini function calling inside Cloudflare Pages Functions. Reference: **ADK** (Python) in `docs/reference/adk-agents/` | One project holds the app and both agents; ADK is the path if the agents move to Cloud Run |
 | Agent → UI | Phase 2: **A2UI**-style declarative cards for Nagi's suggestions | The agent describes the card ("suggestion with Accept / Not now"); the app renders it with its own buttons and styles |
 
 ## 9. When things go wrong
 
 | Situation | What happens |
 |---|---|
-| Nagi is slow (over 4 s) or fails | Fall back to today's code: top 3 by W. A small "planned by formula" label shows |
+| Nagi is slow (no answer in 25 s) or fails | Fall back to today's code: top 3 by W. A small "planned by formula" label shows |
 | Shiomi has not judged a task yet | The report uses the rule estimate with `source: "rule"` and a low confidence |
 | Calendar not connected | Nagi plans from hours per day only and says so in its message |
 | The plan breaks a rule (§5) | Dropped; fall back to W |
@@ -176,13 +176,13 @@ sequenceDiagram
 ## 13. Phases
 
 1. **Contract first** — done: `nagi.js` builds the ShiomiReport, checks every plan, and falls back to the formula.
-2. **Nagi agent and the A2A handoff** — done, on Vercel: `api/agents/shiomi.js`, `api/agents/nagi.js`, `api/nagi.js`.
+2. **Nagi agent and the A2A handoff** — done, on Cloudflare Pages: `functions/api/agents/shiomi.js`, `functions/api/agents/nagi.js`, `functions/api/nagi.js`.
 3. **Calendar** (read-only) behind a Settings switch — not yet; `get_free_time` says "not connected".
 4. **Suggestions as A2UI cards**, and the evaluation set — not yet.
 
 ## 14. Decisions made
 
-1. **Hosting**: Vercel. Cloud Run was prepared (ADK + A2A in Python, tested locally) but not needed; it stays as a reference.
+1. **Hosting**: Cloudflare Pages (first Vercel, moved on 2026-11-28 for a short URL). Cloud Run was prepared (ADK + A2A in Python, tested locally) but not needed; it stays as a reference.
 2. **Calendar**: later (phase 3).
-3. **A2A**: real A2A between two endpoints (each with its own agent card), even though both live in the same Vercel project.
+3. **A2A**: real A2A between two endpoints (each with its own agent card), even though both live in the same Pages project.
 4. **Suggestions**: tomorrow, lighter, later, dive — each only runs when the user taps it.
