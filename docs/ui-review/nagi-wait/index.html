@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nagi is working — four options</title>
+<style>
+  :root { --ink: #16303a; --sub: #4f6670; --pri: #2f6670; --ease-out: cubic-bezier(.2,.8,.2,1); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif; background: #dde7ea; color: var(--ink); }
+  header { padding: 24px 32px 8px; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 6px 0 0; font-size: 13px; color: var(--sub); }
+  .grid { display: grid; grid-template-columns: repeat(2, 809px); gap: 24px; padding: 16px 32px 32px; }
+  .opt h2 { margin: 0 0 8px; font-size: 15px; }
+  .opt h2 small { font-weight: 400; color: var(--sub); margin-left: 8px; }
+  .frame { position: relative; width: 809px; height: 600px; border-radius: 14px; overflow: hidden; background: url(bg.jpg) center / cover; box-shadow: 0 8px 28px rgba(20,50,60,.18); }
+  /* cover the date in the greeting line so the status can sit there */
+  .line { position: absolute; left: 140px; top: 27px; height: 22px; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 0;
+    background: linear-gradient(90deg, rgba(222,231,234,.97) 85%, rgba(222,231,234,0)); font-size: 13px; color: var(--sub); white-space: nowrap; max-width: 292px; overflow: hidden; }
+  .note { margin: 10px 2px 0; font-size: 12.5px; color: var(--sub); line-height: 1.6; }
+  .replay { position: absolute; right: 12px; bottom: 12px; border: 1px solid rgba(22,48,58,.15); background: rgba(255,255,255,.85); border-radius: 8px; font-size: 12px; padding: 4px 10px; cursor: pointer; }
+
+  /* ---- A: a status line that changes words (typewriter / change content) with a soft shimmer ---- */
+  .a .word { position: relative; display: inline-block; color: var(--ink); font-weight: 500; }
+  .a .word.out { animation: wordOut .22s var(--ease-out) forwards; }
+  .a .word.in { animation: wordIn .3s var(--ease-out) both; }
+  @keyframes wordOut { to { opacity: 0; transform: translateY(-6px); } }
+  @keyframes wordIn { from { opacity: 0; transform: translateY(6px); } }
+  .shimmer { background: linear-gradient(90deg, var(--ink) 0%, var(--ink) 40%, #8fb9bf 50%, var(--ink) 60%, var(--ink) 100%); background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent !important; animation: shine 2.4s linear infinite; }
+  @keyframes shine { from { background-position: 100% 0; } to { background-position: 0 0; } }
+  .nagi-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f9aa2; flex: none; animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { transform: scale(.7); opacity: .5; } 50% { transform: scale(1.15); opacity: 1; } }
+
+  /* ---- B: ripples pass over the buoys Nagi is looking at (loading ripple) ---- */
+  .ring { position: absolute; width: 60px; height: 22px; margin: -11px 0 0 -30px; border: 2px solid rgba(255,255,255,.9); border-radius: 50%; opacity: 0; pointer-events: none; }
+  .ring.go { animation: ripple 1.6s ease-out forwards; }
+  @keyframes ripple { 0% { transform: scale(.4); opacity: .9; } 100% { transform: scale(2.2); opacity: 0; } }
+  .chip { position: absolute; left: 50%; top: 214px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+    border-radius: 999px; background: rgba(244,249,250,.92); box-shadow: 0 4px 14px rgba(20,50,60,.15); font-size: 12.5px; color: var(--ink); }
+
+  /* ---- C: a thin tide line under the top band, moving like a wave (progress / line reveal) ---- */
+  .tideline { position: absolute; left: 0; right: 0; top: 60px; height: 3px; overflow: hidden; background: rgba(47,102,112,.12); }
+  .tideline i { position: absolute; top: 0; left: -40%; width: 40%; height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, rgba(79,154,162,0), #4f9aa2, rgba(79,154,162,0)); animation: tide 1.8s cubic-bezier(.4,0,.2,1) infinite; }
+  @keyframes tide { to { left: 100%; } }
+  .c .sub2 { color: var(--ink); font-weight: 500; }
+
+  /* ---- D: a small card that lists the steps between the agents (Nagi ↔ Shiomi over A2A) ---- */
+  .steps { position: absolute; right: 16px; top: 214px; width: 300px; padding: 12px 14px; border-radius: 12px; background: rgba(244,249,250,.95);
+    box-shadow: 0 8px 24px rgba(20,50,60,.18); font-size: 12.5px; opacity: 0; transform: translateY(8px); transition: opacity .22s var(--ease-out), transform .22s var(--ease-out); }
+  .steps.on { opacity: 1; transform: none; }
+  .steps b { display: block; font-size: 13px; margin-bottom: 8px; }
+  .step { display: flex; align-items: center; gap: 10px; padding: 4px 0; color: var(--sub); }
+  .step .mk { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid rgba(22,48,58,.25); flex: none; display: grid; place-items: center; }
+  .step.now { color: var(--ink); font-weight: 500; }
+  .step.now .mk { border-color: #4f9aa2; border-top-color: transparent; animation: spin .9s linear infinite; }
+  .step.done { color: var(--ink); }
+  .step.done .mk { background: #4f9aa2; border-color: #4f9aa2; }
+  .step.done .mk::after { content: ''; width: 6px; height: 3px; border: 1.5px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .steps .foot { margin-top: 8px; font-size: 11px; color: var(--sub); }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Showing that Nagi is working — four options</h1>
+  <p>Turning on Nagi mode sends Shiomi's report to the Nagi agent (Cloud Run, A2A) and waits a few seconds, up to ~75 s, for its plan. Each frame loops; press "Replay" to start it again.</p>
+</header>
+<div class="grid">
+
+  <section class="opt a">
+    <h2>A. The greeting line changes words <small>motion.dev: Typewriter / Change content, text shimmer</small></h2>
+    <div class="frame" id="fa">
+      <div class="line"><i class="nagi-dot"></i><span class="word shimmer" id="aw">Reading Shiomi's notes…</span></div>
+      <button class="replay" data-replay="a">Replay</button>
+    </div>
+    <p class="note">The line under the greeting shows what Nagi is doing, a few words at a time; each phrase rises in and the current one shimmers. Small, calm, no extra panel.</p>
+  </section>
+
+  <section class="opt b">
+    <h2>B. Ripples pass over the buoys being weighed <small>motion.dev: Loading ripple</small></h2>
+    <div class="frame" id="fb">
+      <div class="chip"><i class="nagi-dot"></i><span id="bw">Calming the waves…</span></div>
+      <button class="replay" data-replay="b">Replay</button>
+    </div>
+    <p class="note">A soft ring spreads on the water around one buoy after another, as if Nagi were touching each task. A small chip says what is happening. Ties the waiting to the lake itself.</p>
+  </section>
+
+  <section class="opt c">
+    <h2>C. A tide line runs under the top band <small>motion.dev: Loading progress bar / overlay line reveal</small></h2>
+    <div class="frame" id="fc">
+      <div class="tideline"><i></i></div>
+      <div class="line"><span class="sub2" id="cw">Nagi is narrowing today down to three</span></div>
+      <button class="replay" data-replay="c">Replay</button>
+    </div>
+    <p class="note">A thin line, like a wave running along the shore, moves under the header while the agent works. The least intrusive; reads as "something is in progress" anywhere on the screen.</p>
+  </section>
+
+  <section class="opt d">
+    <h2>D. A small card lists the steps between the agents <small>step list (as in AI assistants), motion.dev: Circle spinner</small></h2>
+    <div class="frame" id="fd">
+      <div class="line"><i class="nagi-dot"></i><span class="word">Nagi is choosing…</span></div>
+      <div class="steps" id="ds">
+        <b>Nagi is working</b>
+        <div class="step" data-s="0"><span class="mk"></span>Got Shiomi's report (13 tasks)</div>
+        <div class="step" data-s="1"><span class="mk"></span>Asking Shiomi about 2 tasks</div>
+        <div class="step" data-s="2"><span class="mk"></span>Checking today's free time</div>
+        <div class="step" data-s="3"><span class="mk"></span>Choosing the three to keep</div>
+        <div class="foot">Nagi ↔ Shiomi over A2A</div>
+      </div>
+      <button class="replay" data-replay="d">Replay</button>
+    </div>
+    <p class="note">Shows the real handoff: each step ticks off as it finishes. The most informative and the best for explaining the agents (portfolio), but the busiest; steps need the server to report progress (A2A streaming).</p>
+  </section>
+</div>
+
+<script>
+  // buoy positions in this background (frame coordinates)
+  const BUOYS = [[130, 440], [320, 440], [392, 433], [466, 430], [249, 350], [404, 390], [233, 307]];
+  const PHRASES = ["Reading Shiomi's notes…", 'Narrowing down what you need today…', 'Letting the rest sink…', 'Calming the waves…'];
+  const loops = {};
+
+  function runA() {
+    const w = document.getElementById('aw'); let i = 0;
+    clearInterval(loops.a);
+    w.textContent = PHRASES[0];
+    loops.a = setInterval(() => {
+      w.classList.remove('in'); w.classList.add('out');
+      setTimeout(() => { i = (i + 1) % PHRASES.length; w.textContent = PHRASES[i]; w.classList.remove('out'); void w.offsetWidth; w.classList.add('in'); }, 220);
+    }, 2200);
+  }
+  function runB() {
+    const f = document.getElementById('fb'), w = document.getElementById('bw'); let i = 0;
+    clearInterval(loops.b);
+    const words = ['Calming the waves…', 'Weighing each buoy…', 'Keeping three for now…'];
+    loops.b = setInterval(() => {
+      const [x, y] = BUOYS[i % BUOYS.length];
+      for (const d of [0, 260]) setTimeout(() => {
+        const r = document.createElement('i'); r.className = 'ring'; r.style.left = x + 'px'; r.style.top = (y + 18) + 'px';
+        f.appendChild(r); requestAnimationFrame(() => r.classList.add('go')); setTimeout(() => r.remove(), 1800);
+      }, d);
+      if (i % 3 === 0) w.textContent = words[(i / 3) % words.length | 0];
+      i++;
+    }, 700);
+  }
+  function runC() { /* the line loops by itself */ }
+  function runD() {
+    const card = document.getElementById('ds'), steps = [...card.querySelectorAll('.step')];
+    clearTimeout(loops.d); card.classList.remove('on'); steps.forEach(s => (s.className = 'step'));
+    let k = 0;
+    const next = () => {
+      steps.forEach((s, j) => (s.className = 'step' + (j < k ? ' done' : j === k ? ' now' : '')));
+      if (k <= steps.length) { k++; loops.d = setTimeout(next, k === 2 ? 2600 : 1500); }
+      else loops.d = setTimeout(runD, 1800);
+    };
+    setTimeout(() => { card.classList.add('on'); next(); }, 300);
+  }
+  const RUN = { a: runA, b: runB, c: runC, d: runD };
+  document.addEventListener('click', e => { const b = e.target.closest('[data-replay]'); if (b) RUN[b.dataset.replay](); });
+  Object.values(RUN).forEach(f => f());
+</script>
+</body>
+</html>

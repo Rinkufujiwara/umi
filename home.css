@@ -662,9 +662,12 @@ html[data-night="1"] .tide .meter i.on:nth-child(2) { background: #6aa9ad; }
 html[data-night="1"] .tide .meter i.on:nth-child(3) { background: #5fa3ad; }
 
 /* while Nagi is choosing: a quiet pulse on the greeting line */
-.greet .nagimsg.thinking { color: var(--sub); animation: nagiThink 1.6s ease-in-out infinite; }
+.greet .nagimsg.thinking { color: var(--sub); }
+/* loading: the dots after the text go . → .. → ... */
+.greet span.nagimsg.thinking::after { content: '...'; display: inline-block; width: 0; overflow: hidden; vertical-align: bottom; animation: nagiDots 1.2s steps(4, jump-none) infinite; }
+@keyframes nagiDots { to { width: 1.1em; } }
 @keyframes nagiThink { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .greet .nagimsg.thinking { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .greet span.nagimsg.thinking::after { animation: none; width: auto; } }
 
 /* ---------------------------------------------------------------- Shiomi asks back (docs/ui-review/askback-mock.html)
    A small "?" floats with the buoy (no ripple or glow), the tag says Shiomi has a question, and the card is drawn
