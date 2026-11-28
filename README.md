@@ -4,6 +4,8 @@ A task dashboard where tasks float as buoys on a low-poly lake. Finish one and i
 
 **Live demo: https://umi-lake.pages.dev** (sign in with Google to sync and to use the agents; signed out, everything stays in your browser)
 
+![Umi's home screen at sunset: tasks float as buoys on the lake, with today's priorities and the one to do now above](docs/img/home.png)
+
 The interface is in English by default; Japanese can be chosen in **Settings → Language** (or open the page with `?lang=ja`).
 A few names are kept as they are in both languages: **Umi** (the app, "sea"), **Nagi** (the calm mode, "a dead-calm sea") and **Shiomi** (the AI that weighs tasks, "tide-watcher").
 
@@ -60,54 +62,53 @@ different clouds; they are connected only by A2A.
 
 ### Structure
 
+Read it left to right: the app talks only to Nagi; Nagi talks to Shiomi only when a judgment looks doubtful;
+Shiomi reads and writes its memory through `/api/memory`. The order of the steps is in the sequence diagram below.
+
 ```mermaid
-flowchart TB
-  subgraph Browser["Browser (Umi)"]
-    UI["Nagi mode<br/>home.js"]
-    CARD["question card<br/>a2ui.js (Umi's own parts)"]
-    REC["memory.js<br/>hand corrections · Dive minutes"]
-    CHK{"checkPlan()<br/>rules"}
-    F["formula plan<br/>top 3 by W"]
+flowchart LR
+  subgraph B["Browser · Umi"]
+    UI["Nagi mode<br/>home.js<br/><br/>question card<br/>a2ui.js"]
   end
 
-  subgraph CF["Cloudflare Pages (umi-lake.pages.dev)"]
-    ORCH["/api/nagi<br/>calls only Nagi"]
-    subgraph NA["Nagi agent (JavaScript)"]
-      NP["message/send<br/>skill: plan-nagi"]
-      NT["tools: day budget · free time<br/>task · dive history"]
-      ASK["ask_shiomi<br/>A2A client (@a2a-js/sdk)"]
-    end
+  subgraph CF["Cloudflare Pages"]
+    API["/api/nagi"]
+    N["<b>Nagi</b> · planner<br/>JavaScript<br/><br/>day budget · free time<br/>task · dive history<br/>ask_shiomi"]
+  end
+
+  subgraph GC["Google Cloud Run"]
+    S["<b>Shiomi</b> · judge<br/>Python + Google ADK<br/><br/>recall_corrections<br/>effort_bias · ask_user<br/><br/><i>Gemini key in Secret Manager</i>"]
+  end
+
+  subgraph CFM["Cloudflare Pages · memory"]
     MEM["/api/memory"]
-    D1[("D1 umi-memory<br/>corrections · actuals<br/>clarifications · pending_tasks")]
-  end
-
-  subgraph GCP["Google Cloud Run (umi-shiomi)"]
-    subgraph SA["Shiomi agent (Python + ADK)"]
-      SJ["A2A SendMessage<br/>to_a2a() · input-required"]
-      ST["tools: recall_corrections · effort_bias<br/>ask_user (long-running)"]
-      PS["PendingTaskStore"]
-    end
-    SM["Secret Manager<br/>Gemini key"]
+    D1[("D1<br/>corrections · actuals<br/>clarifications<br/>paused tasks")]
   end
 
   G["Gemini 2.5 Flash"]
 
-  UI -->|"POST report + ID token"| ORCH -->|"A2A"| NP
-  NP <--> NT
-  NP --> ASK -->|"A2A 1.0, when a judgment looks doubtful"| SJ
-  SJ <--> ST
-  ST -->|"user's token"| MEM --> D1
-  PS -->|"paused tasks"| MEM
-  NP -->|"paused plan"| D1
-  REC --> MEM
-  SJ --> G
-  NP --> G
-  SM -.-> SJ
-  ORCH -->|"plan + trace"| CHK
-  ORCH -->|"Shiomi's question (A2UI)"| CARD -->|"answer"| ORCH
-  CHK -->|passes| UI
-  CHK -->|"fails, error, timeout"| F --> UI
+  UI <-- "report → plan<br/>question ↔ answer" --> API
+  API <-- "A2A" --> N
+  N <-- "A2A 1.0<br/>doubtful tasks →<br/>← judgments or a question" --> S
+  S <-- "recall · paused task<br/>(your token)" --> MEM
+  MEM --- D1
+  N -. "paused plan" .-> D1
+  UI -. "your corrections · Dive minutes" .-> MEM
+  N --> G
+  S --> G
 ```
+
+| Arrow | What travels |
+|---|---|
+| Browser ↔ `/api/nagi` | the day's report (your Firebase ID token rides along); back comes a plan, or Shiomi's question as an A2UI card, and later your answer |
+| `/api/nagi` ↔ Nagi | A2A `message/send`; the reply is a Task, `completed` or `input-required` |
+| Nagi ↔ Shiomi | A2A 1.0 through Nagi's tool `ask_shiomi`: only doubtful tasks, with the reason; back come new judgments, or a question (`input-required`) that pauses the plan |
+| Shiomi ↔ `/api/memory` | Shiomi's tools read past corrections, answers and real Dive times; a paused task is saved there so Cloud Run can sleep |
+| Nagi ⇢ D1 | Nagi's own paused plan, while it waits for your answer |
+| Browser ⇢ `/api/memory` | the app records when you correct a value by hand, and how long a Dive took |
+
+The browser checks every plan again before using it (`checkPlan()`) and falls back to the formula if a rule is broken;
+see the guard rails below.
 
 ### One planning run, with a question
 
